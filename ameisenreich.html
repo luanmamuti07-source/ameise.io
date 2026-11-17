@@ -328,6 +328,8 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
   <div class="hpbar"><i id="npHp"></i></div>
   <div class="row" style="margin-top:8px"><span>Futter in diesem Bau</span><b class="food" id="npFood">0</b></div>
   <div class="bar" id="npFoodBarW"><i id="npFoodBar"></i></div>
+  <div class="row"><span>Sammler-Plätze dieses Baus</span><b id="npW">0</b></div>
+  <div class="row"><span>Armee-Plätze dieses Baus</span><b id="npA">0</b></div>
   <h3 class="sec">Räume dieses Baus</h3>
   <div class="list" id="roomList"></div>
   <h3 class="sec">Ausbildung dieses Baus</h3>
@@ -643,16 +645,17 @@ function makeColony(name,color,isPlayer){
 }
 function makeNest(c,x,y,level,plan){
   const n={kind:'nest',id:uid++,col:c,x,y,level,rooms:{brood:0,store:0,quarters:0,barracks:0,fungus:0,guard:0},hp:1,maxHp:1,r:0,R:0,
-    eggT:rnd(1),turT:0,alive:true,hurt:0,lastHit:-99,gar:0,cnt:[0,0,0,0,0,0],num:c.nestSeq++,fl:0,flT:0,zones:[],queue:[],auto:true,eggState:'ok',food:0,cap:250};
+    eggT:rnd(1),turT:0,alive:true,hurt:0,lastHit:-99,gar:0,cnt:[0,0,0,0,0,0],num:c.nestSeq++,fl:0,flT:0,zones:[],queue:[],auto:true,eggState:'ok',food:0,cap:250,capW:18,capA:8,popW:0,popA:0};
   updNest(n);n.hp=n.maxHp;n.cap=150+100*level;c.nests.push(n);structs.push(n);return n;
 }
 function updNest(n){
   const ratio=n.maxHp>1?n.hp/n.maxHp:1;n.r=30+n.level*7;n.R=290+n.level*50;
   n.maxHp=(380+300*n.level)*(1+.15*n.col.sk.walls)*(n.col.isPlayer?1+.15*(meta.lv.walls||0):1);n.hp=ratio*n.maxHp;
 }
-function colCaps(c){let w=0,a=0,s=0,f=0;for(const n of c.nests){w+=12+6*n.level+10*n.rooms.store;a+=5+3*n.level+12*n.rooms.quarters+2*n.rooms.barracks;n.cap=150+100*n.level+250*n.rooms.store;s+=n.cap;f+=n.food}
+function colCaps(c){let w=0,a=0,s=0,f=0;for(const n of c.nests){n.capW=12+6*n.level+10*n.rooms.store;n.capA=5+3*n.level+12*n.rooms.quarters+2*n.rooms.barracks;w+=n.capW;a+=n.capA;n.cap=150+100*n.level+250*n.rooms.store;s+=n.cap;f+=n.food}
   c.capW=Math.min(POPHARD,w);c.capA=Math.min(POPHARD,a);c.popCap=c.capW+c.capA;c.storeCap=Math.max(1,s);c.bank=f}
-const hasRoom=(c,t)=>isFighter(t)?c.popA<c.capA:c.popW<c.capW;
+/* places belong to each nest: a nest only hatches while its own places are free */
+const hasRoom=(n,t)=>{const c=n.col;return isFighter(t)?n.popA<n.capA&&c.popA<POPHARD:n.popW<n.capW&&c.popW<POPHARD};
 function nestAdd(n,v){if(!n||!n.alive)return 0;const add=Math.max(0,Math.min(v,n.cap-n.food));n.food+=add;n.col.totalFood+=add;return add}
 const richest=c=>c.nests.reduce((b,n)=>!b||n.food>b.food?n:b,null);
 function moveFood(from,to,v){v=Math.floor(Math.max(0,Math.min(v,from.food,to.cap-to.food)));from.food-=v;to.food+=v;return v}
@@ -791,7 +794,7 @@ function sendQueen(c,src,tx,ty){
   src.food-=cost;const q={kind:'queen',col:c,x:src.x,y:src.y,tx,ty,hp:180,maxHp:180,r:11,alive:true,a:Math.atan2(ty-src.y,tx-src.x),step:0,hurt:0,lastHit:-99,plan:src.plan};
   c.travelers.push(q);structs.push(q);return true;
 }
-function transfer(c,from,to,type,num){let k=0;for(const a of ants){if(k>=num)break;if(a.alive&&a.col===c&&a.home===from&&a.type===type&&!a.legion){a.home=to;a.area=-1;a.miss=0;release(a);a.ret=a.load>0;k++}}return k}
+function transfer(c,from,to,type,num){const f=isFighter(type);num=Math.min(num,Math.max(0,f?to.capA-to.popA:to.capW-to.popW));let k=0;for(const a of ants){if(k>=num)break;if(a.alive&&a.col===c&&a.home===from&&a.type===type&&!a.legion){a.home=to;a.area=-1;a.miss=0;release(a);a.ret=a.load>0;k++}}return k}
 
 /* ---------- legions ---------- */
 function raiseLegion(c,frac=1,from=null){
@@ -1174,12 +1177,12 @@ function updateNest(n,dt){
     if(t<0){n.nextEgg=null;n.eggT=1;n.eggState='idle'}
     else{const cost=eggCost(n,t);
       const fromQ=n.queue.length&&n.queue[0].t===t;
-      if(hasRoom(c,t)&&n.food>=cost&&ants.length<MAXANTS){n.food-=cost;spawnAnt(c,n,t);n.eggT-=1;c.pop++;if(isFighter(t))c.popA++;else c.popW++;n.nextEgg=null;n.eggState='ok';
+      if(hasRoom(n,t)&&n.food>=cost&&ants.length<MAXANTS){n.food-=cost;spawnAnt(c,n,t);n.eggT-=1;c.pop++;if(isFighter(t)){c.popA++;n.popA++}else{c.popW++;n.popW++}n.nextEgg=null;n.eggState='ok';
         if(fromQ){const q=n.queue[0];q.n--;if(q.n<=0)n.queue.shift()}}
-      else if(fromQ&&isFighter(t)&&!hasRoom(c,t)&&n.auto&&c.popW<c.capW){
+      else if(fromQ&&isFighter(t)&&!hasRoom(n,t)&&n.auto&&hasRoom(n,0)){
         const w=unlocked(c,3)&&n.cnt[3]*4<n.cnt[0]-2?3:0,wc=eggCost(n,w);n.eggState='popA';
-        if(n.food>=wc+cost&&ants.length<MAXANTS){n.food-=wc;spawnAnt(c,n,w);n.eggT-=1;c.pop++;c.popW++}else n.eggT=Math.min(n.eggT,1.15)}
-      else{n.eggT=Math.min(n.eggT,1.15);n.eggState=!hasRoom(c,t)?(isFighter(t)?'popA':'popW'):'food'}}}
+        if(n.food>=wc+cost&&ants.length<MAXANTS){n.food-=wc;spawnAnt(c,n,w);n.eggT-=1;c.pop++;c.popW++;n.popW++}else n.eggT=Math.min(n.eggT,1.15)}
+      else{n.eggT=Math.min(n.eggT,1.15);n.eggState=!hasRoom(n,t)?(isFighter(t)?'popA':'popW'):'food'}}}
   if(n.rooms.fungus)nestAdd(n,.5*n.rooms.fungus*dt);
   n.turT-=dt;
   if(n.turT<=0){n.turT=.7;const e=nearestEnemyAnt(n.x,n.y,c,n.r+130);if(e&&(e.legion||e.enemy||e.es||Math.hypot(e.x-n.x,e.y-n.y)<n.r+60))shoot(n.x,n.y-n.r*.3,e,6+8*n.rooms.guard,null,c,'#7fd1c4')}
@@ -1204,7 +1207,7 @@ function botSpend(c){
     const tot=Object.values(n.rooms).reduce((a,b)=>a+b,0);
     if(n.level<NEST_MAX&&tot>=n.level*2)opts.push({w:4,pay:n,cost:NEST_UP[n.level],f:()=>tryNestUp(c,n)});
     for(const r of ROOMS){const l=n.rooms[r.k];if(l>=roomMax(n))continue;
-      const w={brood:3,store:(c.popW>=c.capW*.85||n.food>n.cap*.75)?6:1.2,quarters:c.popA>=c.capA*.85&&c.capA<c.capW*(.45+.4*ai.aggr)?1+ai.aggr:.25,barracks:1.4*ai.aggr,fungus:1.6,guard:time-n.lastHit<25?5:.8}[r.k];
+      const w={brood:3,store:(n.popW>=n.capW*.85||n.food>n.cap*.75)?6:1.2,quarters:n.popA>=n.capA*.85&&n.capA<n.capW*(.45+.4*ai.aggr)?1+ai.aggr:.25,barracks:1.4*ai.aggr,fungus:1.6,guard:time-n.lastHit<25?5:.8}[r.k];
       opts.push({w,pay:n,cost:roomCost(r,l),f:()=>tryRoom(c,n,r.k)})}
   }
   for(const n of c.nests){const fs=c.farms.filter(f=>f.nest===n);
@@ -1320,9 +1323,9 @@ function update(dt){
   w=0;for(const f of foods)if(!f.dead&&f.v>0)foods[w++]=f;foods.length=w;
   structs=structs.filter(s=>s.alive);colonies=colonies.filter(c=>c.alive);
   for(const c of colonies){c.pop=0;c.popW=0;c.popA=0;c.cnt.fill(0);c.idleW=0;c.carriers.length=0;for(const L of c.legions){L.size=0;L.cx=0;L.cy=0;L.leader=false;L.mix=[0,0,0,0,0,0]}}
-  for(const s of structs)if(s.kind==='nest'){s.gar=0;s.cnt.fill(0)}
+  for(const s of structs)if(s.kind==='nest'){s.gar=0;s.cnt.fill(0);s.popW=0;s.popA=0}
   const ccap=new Map();
-  for(const a of ants){const c=a.col;c.pop++;if(isFighter(a.type))c.popA++;else c.popW++;c.cnt[a.type]++;
+  for(const a of ants){const c=a.col;c.pop++;if(isFighter(a.type))c.popA++;else c.popW++;c.cnt[a.type]++;if(a.home&&a.home.alive){if(isFighter(a.type))a.home.popA++;else a.home.popW++}
     if(a.legion){a.legion.size++;a.legion.mix[a.type]++;a.legion.cx+=a.x;a.legion.cy+=a.y;if(a.type===4&&c.doc.g1==='leader')a.legion.leader=true}
     else if(a.home.alive){a.home.cnt[a.type]++;if(isFighter(a.type))a.home.gar++}
     if(a.type===0&&!a.carry&&!a.food&&!a.scout)c.idleW++;
@@ -1698,7 +1701,7 @@ const evoPayNest=()=>{const id=$('evoPay').value;return player&&(player.nests.fi
    d.innerHTML=`<span class="ic" style="background:${col}"></span><span>${name}</span><b class="a">0</b><span class="ar">→</span><b class="b">0</b><span class="bs">${btns.map(b=>`<button class="btn sm" type="button" data-q="${b}">${b==='all'?'Alle':b==='half'?'½':b}</button>`).join('')}</span>`;
    d.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{if(lg.from&&lg.to&&lg.from!==lg.to&&lg.from.alive&&lg.to.alive){act(b.dataset.q);hudTick()}}));box.appendChild(d);return d};
  lg.rows.push(mk('#ffd27a','Futter',['25','100','half'],q=>{const f=lg.from,v=q==='half'?f.food/2:+q;const m=moveFood(f,lg.to,v);if(m)floats.push({x:lg.to.x,y:lg.to.y-lg.to.r-10,t:'+'+m,l:1.1,c:'#ffd27a'});else tip(lg.to.food>=lg.to.cap-1?'Das Lager im Zielbau ist voll':'Kein Futter zum Verschieben')}));
- UNIT.forEach((u,t)=>lg.rows.push(mk(u.col,u.pl,['1','5','all'],q=>{const k=transfer(player,lg.from,lg.to,t,q==='all'?1e9:+q);if(k)toast(`${k} ${k===1?u.name:u.pl} → ${nestName(lg.to)}`)})));}
+ UNIT.forEach((u,t)=>lg.rows.push(mk(u.col,u.pl,['1','5','all'],q=>{const k=transfer(player,lg.from,lg.to,t,q==='all'?1e9:+q);if(k){toast(`${k} ${k===1?u.name:u.pl} → ${nestName(lg.to)}`);if(isFighter(t))lg.to.popA+=k,lg.from.popA-=k;else lg.to.popW+=k,lg.from.popW-=k}else if(lg.from.cnt[t])tip(`In ${nestName(lg.to)} sind keine ${isFighter(t)?'Armee':'Sammler'}-Plätze mehr frei`)})));}
 function openLogi(from){if(!player)return;closeEvo();closeRaise();closeOvw();lg.from=from||sel.nest||player.nests[0];lg.to=player.nests.find(n=>n!==lg.from)||null;lgSig='';$('logi').hidden=false;hudTick()}
 function closeLogi(){$('logi').hidden=true}
 let lgSig='';
@@ -1718,9 +1721,9 @@ function logiTick(c){
     r.querySelector('.a').textContent=f?(i===0?`${fmt(f.food)}`:f.cnt[ty]):'–';r.querySelector('.b').textContent=t?(i===0?`${fmt(t.food)}`:t.cnt[ty]):'–';
     r.querySelectorAll('button').forEach(b=>b.classList.toggle('dis',!t||!f||(i===0?f.food<1:!f.cnt[ty])))});
   const types=[0,1,2,3,4,5].filter(ty=>unlocked(c,ty));
-  $('lgOver').innerHTML=`<tr><th>Bau</th><th>Stufe</th><th>Futter</th>${types.map(ty=>`<th title="${UNIT[ty].pl}"><span style="color:${UNIT[ty].col}">●</span> ${UNIT[ty].pl.slice(0,4)}.</th>`).join('')}<th>Gebiete</th></tr>`+
-    c.nests.map(n=>`<tr class="cl${n===f?' from':n===t?' to':''}" data-id="${n.id}"><td>${nestName(n)}</td><td>${n.level}</td><td>${fmt(n.food)} / ${fmt(n.cap)}</td>${types.map(ty=>`<td>${n.cnt[ty]}</td>`).join('')}<td>${n.zones.length}/3</td></tr>`).join('');
-  $('lgNote').textContent=c.nests.length<2?'Gründe einen zweiten Bau (im Bau-Menü: Junge Königin aussenden), dann kannst du hier Ameisen und Futter verschieben.':'Ameisen laufen zu Fuß zum neuen Bau. Futter wird sofort umgelagert. Kämpferinnen in Legionen zählen nicht mit.';
+  $('lgOver').innerHTML=`<tr><th>Bau</th><th>Stufe</th><th>Futter</th>${types.map(ty=>`<th title="${UNIT[ty].pl}"><span style="color:${UNIT[ty].col}">●</span> ${UNIT[ty].pl.slice(0,4)}.</th>`).join('')}<th>Plätze S/A</th><th>Gebiete</th></tr>`+
+    c.nests.map(n=>`<tr class="cl${n===f?' from':n===t?' to':''}" data-id="${n.id}"><td>${nestName(n)}</td><td>${n.level}</td><td>${fmt(n.food)} / ${fmt(n.cap)}</td>${types.map(ty=>`<td>${n.cnt[ty]}</td>`).join('')}<td>${n.popW}/${n.capW} · ${n.popA}/${n.capA}</td><td>${n.zones.length}/3</td></tr>`).join('');
+  $('lgNote').textContent=c.nests.length<2?'Gründe einen zweiten Bau (im Bau-Menü: Junge Königin aussenden), dann kannst du hier Ameisen und Futter verschieben.':'Ameisen laufen zu Fuß zum neuen Bau, aber nur, wenn dort Plätze frei sind. Futter wird sofort umgelagert.';
 }
 /* skins shop */
 function previewAnt(cv,skin,color){
@@ -1800,7 +1803,8 @@ function hudTick(){
   if(!$('logi').hidden)logiTick(c);
   const n=sel.nest;
   if(n){$('npTitle').textContent='Bau '+ROM[n.num%7];$('npSub').textContent=`Stufe ${n.level} · ${Math.ceil(n.hp)} / ${Math.round(n.maxHp)} Leben · Garnison ${n.gar}`;
-    $('npHp').style.width=(n.hp/n.maxHp*100)+'%';
+    $('npHp').style.width=(n.hp/n.maxHp*100)+'%';$('npW').textContent=`${n.popW} / ${n.capW}`;$('npA').textContent=`${n.popA} / ${n.capA}`;
+    $('npW').style.color=n.popW>=n.capW?'#ffb09e':'';$('npA').style.color=n.popA>=n.capA?'#ffb09e':'';
     $('npFood').textContent=`${fmt(n.food)} / ${fmt(n.cap)}`;$('npFoodBar').style.width=(n.food/n.cap*100).toFixed(1)+'%';$('npFoodBarW').classList.toggle('full',n.food>=n.cap-1);
     setRow(roomBtns.level,`Stufe ${n.level}/${NEST_MAX}`,NEST_UP[n.level],n.food>=NEST_UP[n.level],n.level>=NEST_MAX);
     for(const r of ROOMS){const l=n.rooms[r.k],mx=roomMax(n);setRow(roomBtns[r.k],l>=mx&&mx<6?`${l}/${mx} · Bau ausbauen`:`${l}/${mx}`,roomCost(r,l),n.food>=roomCost(r,l),l>=mx)}
@@ -1808,7 +1812,7 @@ function hudTick(){
     const qs=n.queue.map(q=>q.t+':'+q.n).join(',')+'|'+Math.round(n.eggT*20);
     if(qs!==qSig){qSig=qs;$('queueList').innerHTML=n.queue.length?n.queue.map((q,i)=>`<span class="qc">${q.n}× ${q.n===1?UNIT[q.t].name:UNIT[q.t].pl}${i===0?`<span class="pg" style="width:${Math.min(100,n.eggT*100)}%"></span>`:''}<button type="button" data-q="${i}" aria-label="Entfernen">×</button></span>`).join(''):'<span class="empty">Warteschlange leer</span>'}
     const qn=n.queue.reduce((s,q)=>s+q.n,0),st=n.eggState;
-    $('trainNote').textContent=st==='popA'?`Armee-Plätze voll (${c.popA}/${c.capA}). Baue ein Kriegerquartier oder schick Kämpferinnen in den Kampf.`+(n.auto&&c.popW<c.capW?' Solange schlüpfen Sammlerinnen.':''):st==='popW'?`Sammler-Plätze voll (${c.popW}/${c.capW}). Baue eine Vorratskammer oder entlasse Sammlerinnen.`:st==='food'?`Zu wenig Futter in diesem Bau (nächstes Ei: ${Math.ceil(eggCost(n,n.nextEgg!=null&&n.nextEgg>=0?n.nextEgg:0))}).`:st==='idle'?'Brut pausiert: Warteschlange leer, automatische Sammlerinnen aus.':qn?`Brütet: ${UNIT[n.queue[0].t].name} · noch ${qn} in der Schlange`:n.auto?'Warteschlange leer: es schlüpfen Sammlerinnen'+(unlocked(c,3)?' und Trägerinnen':''):'';
+    $('trainNote').textContent=st==='popA'?`Armee-Plätze dieses Baus voll (${n.popA}/${n.capA}). Baue hier ein Kriegerquartier oder schick Kämpferinnen in den Kampf.`+(n.auto&&n.popW<n.capW?' Solange schlüpfen Sammlerinnen.':''):st==='popW'?`Sammler-Plätze dieses Baus voll (${n.popW}/${n.capW}). Baue hier eine Vorratskammer oder verschiebe Sammlerinnen in einen anderen Bau.`:st==='food'?`Zu wenig Futter in diesem Bau (nächstes Ei: ${Math.ceil(eggCost(n,n.nextEgg!=null&&n.nextEgg>=0?n.nextEgg:0))}).`:st==='idle'?'Brut pausiert: Warteschlange leer, automatische Sammlerinnen aus.':qn?`Brütet: ${UNIT[n.queue[0].t].name} · noch ${qn} in der Schlange`:n.auto?'Warteschlange leer: es schlüpfen Sammlerinnen'+(unlocked(c,3)?' und Trägerinnen':''):'';
     $('trainNote').classList.toggle('warn',st==='popA'||st==='popW'||st==='food');
     for(let t=0;t<6;t++){peopleRows[t].hidden=!unlocked(c,t)&&!n.cnt[t];peopleRows[t].querySelector('b').textContent=n.cnt[t]}
     {const fs=c.farms.filter(f=>f.nest===n);const h=fs.map(f=>{const up=FARM_UP[f.level+1];
@@ -1906,10 +1910,10 @@ function ovwTick(c){
     return st==='popA'?'<span class="warn">Armee voll</span>':st==='popW'?'<span class="warn">Sammler voll</span>':st==='food'?'<span class="warn">kein Futter</span>':st==='idle'?'pausiert':q?`${UNIT[n.queue[0].t].name} · ${q} in Schlange`:'Sammlerinnen'};
   const tot=[0,0,0,0,0,0];let tg=0,tf=0,tc=0;
   const rows=c.nests.map(n=>{for(const t of types)tot[t]+=n.cnt[t];tg+=n.gar;tf+=n.food;tc+=n.cap;const hf=n.hp/n.maxHp,hit=time-n.lastHit<4;
-    return `<tr class="cl${hit?' hit':''}" data-id="${n.id}"><td>${nestName(n)}${hit?' ⚠':''}</td><td>${n.level}</td><td><span class="hb${hf<.4?' low':''}"><i style="width:${(hf*100).toFixed(0)}%"></i></span>${Math.ceil(n.hp)}</td><td>${fmt(n.food)} / ${fmt(n.cap)}</td>${types.map(t=>`<td>${num(n.cnt[t])}</td>`).join('')}<td><b>${n.gar}</b></td><td>${(()=>{const fs=c.farms.filter(f=>f.nest===n);return fs.length?`${fs.length} · ${Math.floor(fs.reduce((a,f)=>a+f.honey,0))} 🍯`:num(0)})()}</td><td class="l">${stTxt(n)}</td></tr>`}).join('');
+    return `<tr class="cl${hit?' hit':''}" data-id="${n.id}"><td>${nestName(n)}${hit?' ⚠':''}</td><td>${n.level}</td><td><span class="hb${hf<.4?' low':''}"><i style="width:${(hf*100).toFixed(0)}%"></i></span>${Math.ceil(n.hp)}</td><td>${fmt(n.food)} / ${fmt(n.cap)}</td>${types.map(t=>`<td>${num(n.cnt[t])}</td>`).join('')}<td${n.popW>=n.capW?' class="warn"':''}>${n.popW}/${n.capW}</td><td${n.popA>=n.capA?' class="warn"':''}>${n.popA}/${n.capA}</td><td><b>${n.gar}</b></td><td>${(()=>{const fs=c.farms.filter(f=>f.nest===n);return fs.length?`${fs.length} · ${Math.floor(fs.reduce((a,f)=>a+f.honey,0))} 🍯`:num(0)})()}</td><td class="l">${stTxt(n)}</td></tr>`}).join('');
   const setH=(id,h)=>{const el=$(id);if(el._h!==h){el._h=h;el.innerHTML=h}};
-  setH('ovNests',`<tr><th>Bau</th><th>Stufe</th><th>Leben</th><th>Futter</th>${head}<th>Garnison</th><th>Weiden</th><th style="text-align:left">Brut</th></tr>`+rows+
-    (c.nests.length>1?`<tr class="tot"><td>Gesamt</td><td></td><td></td><td>${fmt(tf)} / ${fmt(tc)}</td>${types.map(t=>`<td>${tot[t]}</td>`).join('')}<td>${tg}</td><td>${c.farms.length}</td><td></td></tr>`:''));
+  setH('ovNests',`<tr><th>Bau</th><th>Stufe</th><th>Leben</th><th>Futter</th>${head}<th>Sammler-Pl.</th><th>Armee-Pl.</th><th>Garnison</th><th>Weiden</th><th style="text-align:left">Brut</th></tr>`+rows+
+    (c.nests.length>1?`<tr class="tot"><td>Gesamt</td><td></td><td></td><td>${fmt(tf)} / ${fmt(tc)}</td>${types.map(t=>`<td>${tot[t]}</td>`).join('')}<td>${c.popW}/${c.capW}</td><td>${c.popA}/${c.capA}</td><td>${tg}</td><td>${c.farms.length}</td><td></td></tr>`:''));
   const ft=[1,2,4,5].filter(t=>unlocked(c,t)||c.cnt[t]);
   setH('ovLegs',c.legions.length?`<tr><th>Legion</th><th>Größe</th>${ft.map(t=>`<th><span style="color:${UNIT[t].col}">●</span> ${UNIT[t].pl}</th>`).join('')}<th style="text-align:left">Auftrag</th></tr>`+
     c.legions.map(L=>`<tr class="cl" data-n="${L.num}"><td>Legion ${ROM[L.num]}</td><td><b>${L.size}</b></td>${ft.map(t=>`<td>${num(L.mix?L.mix[t]:0)}</td>`).join('')}<td class="l">${L.captive?'Königin heimbringen':L.target?'Angriff: '+esc(L.target.kind==='mob'?MOBS[L.target.type].name:L.target.col.name):L.defend?'Verteidigung':L.disband?'Heimweg':'Marsch'}</td></tr>`).join('')
@@ -1933,8 +1937,8 @@ function milestones(c){
   const top=colonies.slice().sort((a,b)=>b.strength-a.strength)[0];if(top===c&&!m.top){m.top=1;toast('Du bist die stärkste Kolonie!','good')}if(top!==c)m.top=0;
   if(!m.store&&c.nests.some(n=>n.food>=n.cap-1)){m.store=1;tip(c.nests.length>1?'Ein Lager ist voll! Verschiebe Futter mit der Logistik (L) oder baue eine Vorratskammer':'Lager voll! Baue eine Vorratskammer oder gib Futter in der Evolution aus')}
   if(!m.nest2&&c.nests.length>1){m.nest2=1;tip('Jeder Bau hat sein eigenes Futter. Mit L (Logistik) verschiebst du Futter und Ameisen')}
-  if(!m.popcap&&c.popW>=c.capW){m.popcap=1;tip('Sammler-Plätze voll: Vorratskammer oder Königinnenkammer ausbauen')}
-  if(!m.popA&&c.popA>=c.capA&&c.nests.some(n=>n.queue.length)){m.popA=1;tip('Armee-Plätze voll: baue im Bau ein Kriegerquartier')}
+  if(!m.popcap&&c.nests.some(n=>n.popW>=n.capW)){m.popcap=1;tip('Sammler-Plätze eines Baus voll: jeder Bau hat eigene Plätze. Baue dort eine Vorratskammer oder die Königinnenkammer aus')}
+  if(!m.popA&&c.nests.some(n=>n.popA>=n.capA&&n.queue.length)){m.popA=1;tip('Armee-Plätze voll: baue im Bau ein Kriegerquartier')}
   const t=time-run.start;
   if(!m.t1&&t>4){m.t1=1;tip('Klicke auf deinen Bau, um Räume zu bauen und Sammelgebiete zu markieren')}
   if(!m.t0&&t>18){m.t0=1;tip('Drück E für die Evolution: jede Ameisenart hat ihren eigenen Fähigkeitsbaum')}
