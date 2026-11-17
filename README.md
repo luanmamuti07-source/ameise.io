@@ -17,15 +17,15 @@ Deine Königin lebt in einem Bau. Sammlerinnen holen Futter, damit baust du Räu
 
 | Raum | Wirkung |
 | --- | --- |
-| Königinnenkammer | Stufe des Baus: mehr Leben, Plätze, Revier und Raum-Stufen |
-| Brutkammer | Königin legt schneller Eier |
-| Vorratskammer | Mehr Lager und Sammler-Plätze |
-| Kriegerquartier | Mehr Armee-Plätze |
-| Kaserne | Stärkere Kämpferinnen, billigere Eier |
-| Pilzgarten | Futter wächst von selbst |
-| Wachkammer | Der Bau spuckt Säure auf Angreifer |
+| Königinnenkammer | Stufe des Baus: +300 Leben, +6 Sammler- und +3 Armee-Plätze, +100 Lager, größeres Revier, schnellere Eier, Räume eine Stufe höher |
+| Brutkammer | Die Königin dieses Baus legt 18% schneller Eier (pro Stufe) |
+| Vorratskammer | +250 Lager und +10 Sammler-Plätze für diesen Bau |
+| Kriegerquartier | +12 Armee-Plätze für diesen Bau |
+| Kaserne | Kämpferinnen dieses Baus +10% Leben und Schaden, ihre Eier 8% billiger, +2 Armee-Plätze |
+| Pilzgarten | +0,5 Futter pro Sekunde |
+| Wachkammer | Der Säureschuss des Baus macht +8 Schaden pro Stufe |
 
-Jeder Bau hat **eigenes Futter** und **getrennte Plätze** für Sammlerinnen und Armee. Im Logistik-Fenster verschiebst du Futter und Ameisen zwischen deinen Bauen.
+Jeder Bau hat **eigenes Futter** und **eigene Plätze** für Sammlerinnen und Armee. Ein Bau brütet nur, solange seine eigenen Plätze frei sind. Im Logistik-Fenster verschiebst du Futter und Ameisen zwischen deinen Bauen.
 
 ### Ameisenarten
 

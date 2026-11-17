@@ -309,8 +309,8 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
   <div class="brand">Ameisenreich <small id="sTime">0:00</small></div>
   <div class="row"><span>Futter</span><b class="food" id="sFood">0</b></div>
   <div class="bar" id="sFoodBarW"><i id="sFoodBar"></i></div>
-  <div class="row"><span>Sammler-Plätze</span><b id="sPop">0</b></div>
-  <div class="row"><span>Armee-Plätze</span><b id="sArmy">0</b></div>
+  <div class="row"><span>Sammler-Plätze (alle)</span><b id="sPop">0</b></div>
+  <div class="row"><span>Armee-Plätze (alle)</span><b id="sArmy">0</b></div>
   <div class="row opt"><span>Sammlerinnen</span><b id="sWork">0</b></div>
   <div class="row opt"><span>Trägerinnen</span><b id="sCarr">0</b></div>
   <div class="row opt"><span>Kämpferinnen</span><b id="sFight">0</b></div>
@@ -339,7 +339,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
   <label class="chk" for="autoW"><input type="checkbox" id="autoW"> Ist die Warteschlange leer, füllt die Königin freie Plätze mit Sammlerinnen</label>
   <h3 class="sec">Sammelgebiete</h3>
   <div class="btnrow"><button class="btn" id="zoneBtn" type="button">Gebiet markieren</button><button class="btn red" id="zoneClr" type="button">Alle löschen</button></div>
-  <p class="note" id="zoneNote">Sammlerinnen arbeiten im Revier und in bis zu 3 markierten Gebieten. Ist ein Gebiet leer, wechseln sie ins nächste.</p>
+  <p class="note" id="zoneNote">Sammlerinnen arbeiten im Revier des Baus und in bis zu 3 markierten Gebieten (max. 1500 entfernt). Ist ein Gebiet leer, wechseln sie ins nächste.</p>
   <h3 class="sec">Blattlaus-Weiden</h3>
   <div class="train" id="farmList"></div>
   <div class="btnrow" style="margin-top:6px"><button class="btn" id="farmBtn" type="button">Weide anlegen · 150</button></div>
@@ -348,7 +348,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
   <div class="people" id="peopleList"></div>
   <button class="btn" id="npLogi" type="button" style="margin-top:8px;width:100%">Ameisen und Futter verschieben <kbd>L</kbd></button>
   <h3 class="sec">Kolonie teilen</h3>
-  <div class="list"><button class="up" id="splitBtn" type="button"><span class="ic" style="background:#ffd27a"></span><span class="nm">Junge Königin aussenden</span><span class="cost"></span><span class="ds">Gründet einen neuen Bau, wo du klickst</span><span class="lv"></span></button></div>
+  <div class="list"><button class="up" id="splitBtn" type="button"><span class="ic" style="background:#ffd27a"></span><span class="nm">Junge Königin aussenden</span><span class="cost"></span><span class="ds">Ab Stufe 2: fliegt zum Platz, den du anklickst, und gründet dort einen Bau mit 5 Sammlerinnen und 2 Kriegerinnen. Unterwegs kann sie abgefangen werden</span><span class="lv"></span></button></div>
 </div>
 
 <div id="evo" class="hud panel" hidden>
@@ -359,7 +359,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
 </div>
 
 <div id="logi" class="hud panel" hidden>
-  <div class="ph"><div><h2>Logistik</h2><small>Jeder Bau hat sein eigenes Futter und Volk. Hier verschiebst du beides.</small></div><button class="x" id="lgClose" type="button" aria-label="Schließen">×</button></div>
+  <div class="ph"><div><h2>Logistik</h2><small>Jeder Bau hat eigenes Futter, eigenes Volk und eigene Plätze. Hier verschiebst du Futter und Ameisen zwischen deinen Bauen.</small></div><button class="x" id="lgClose" type="button" aria-label="Schließen">×</button></div>
   <div class="lgsel">
     <label for="lgFrom">Von<select class="sel" id="lgFrom"></select></label>
     <button class="btn" id="lgSwap" type="button" aria-label="Richtung tauschen">⇄ tauschen</button>
@@ -423,7 +423,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
     <div class="daily" id="dailyLine" hidden></div>
     <div class="how">
       <kbd>Klick Bau</kbd><span>Räume, Ausbildung, Sammelgebiete. L verschiebt Ameisen und Futter, O zeigt alle Baue mit ihren Truppen.</span>
-      <kbd>Ereignisse</kbd><span>Riesenkäfer, Würmer, heruntergefallenes Eis, aber auch Spinnen und Riesenschuhe. Klick ein Ereignis rechts an, um hinzuspringen.</span>
+      <kbd>Ereignisse</kbd><span>Riesenkäfer, Würmer, heruntergefallenes Eis, aber auch Spinnen, Marienkäfer und Riesenschuhe. Klick ein Ereignis rechts an, um hinzuspringen. Ist eine Legion gewählt, greift sie es direkt an.</span>
       <kbd>E</kbd><span>Evolution: jede Ameisenart hat ihren eigenen Baum. Fortschritt schaltet neue Bäume und Arten frei, Kämpferinnen bekommen einmalige Spezialisierungen.</span>
       <kbd>Nebel</kbd><span>Du siehst nur, was deine Ameisen sehen. Sammlerinnen und Legionen erkunden die Karte.</span>
       <kbd>R</kbd><span>Legion zusammenstellen: du wählst, wie viele Kriegerinnen, Spuckerinnen usw. mitgehen. Shift + R nimmt alle.</span>
@@ -514,22 +514,22 @@ const shade=(h,f)=>{const [r,g,b]=hexRgb(h);return `rgb(${r*f|0},${g*f|0},${b*f|
 const UNIT=[
   {name:'Sammlerin',pl:'Sammlerinnen',hp:10,dmg:2,spd:112,egg:4,sz:1,str:1,col:'#ffd27a',desc:'sammelt Futter'},
   {name:'Kriegerin',pl:'Kriegerinnen',hp:30,dmg:9,spd:100,egg:9,sz:1.45,str:3,col:'#ef5a3c',desc:'Nahkampf'},
-  {name:'Spuckerin',pl:'Spuckerinnen',hp:16,dmg:7,spd:96,egg:11,sz:1.2,str:3,col:'#a6e05a',desc:'Säure auf Distanz'},
+  {name:'Spuckerin',pl:'Spuckerinnen',hp:16,dmg:7,spd:96,egg:11,sz:1.2,str:3,col:'#a6e05a',desc:'spuckt Säure aus der Distanz'},
   {name:'Trägerin',pl:'Trägerinnen',hp:24,dmg:0,spd:82,egg:8,sz:1.75,str:1,col:'#e0a94a',desc:'schleppt Futter der Sammlerinnen heim'},
-  {name:'Riesin',pl:'Riesinnen',hp:110,dmg:20,spd:70,egg:26,sz:2.3,str:9,col:'#c8442f',desc:'Panzer, trifft mehrere'},
-  {name:'Sprengameise',pl:'Sprengameisen',hp:8,dmg:55,spd:122,egg:13,sz:1.1,str:2,col:'#ff9a3c',desc:'explodiert im Ziel'},
+  {name:'Riesin',pl:'Riesinnen',hp:110,dmg:20,spd:70,egg:26,sz:2.3,str:9,col:'#c8442f',desc:'sehr zäh, trifft auch Gegner neben dem Ziel'},
+  {name:'Sprengameise',pl:'Sprengameisen',hp:8,dmg:55,spd:122,egg:13,sz:1.1,str:2,col:'#ff9a3c',desc:'rennt zum Gegner und explodiert mit Flächenschaden'},
 ];
 const isFighter=t=>t===1||t===2||t===4||t===5;
 const unlocked=(c,t)=>t===0||t===1||treeOpen(c,TREES.find(tr=>tr.unit===t));
 
 /* ---------- rooms & evolution ---------- */
 const ROOMS=[
-  {k:'brood',name:'Brutkammer',desc:'+18% Eier in diesem Bau',base:35},
-  {k:'store',name:'Vorratskammer',desc:'+250 Lager · +10 Sammler-Plätze',base:30},
-  {k:'quarters',name:'Kriegerquartier',desc:'+12 Armee-Plätze für Kämpferinnen',base:40},
-  {k:'barracks',name:'Kaserne',desc:'Kämpferinnen +10% · Eier billiger · +2 Armee-Plätze',base:60},
-  {k:'fungus',name:'Pilzgarten',desc:'+0,5 Futter pro Sekunde',base:70},
-  {k:'guard',name:'Wachkammer',desc:'Bau spuckt Säure auf Angreifer',base:55},
+  {k:'brood',name:'Brutkammer',desc:'Die Königin dieses Baus legt 18% schneller Eier (pro Stufe)',base:35},
+  {k:'store',name:'Vorratskammer',desc:'Dieser Bau: +250 Lager und +10 Sammler-Plätze',base:30},
+  {k:'quarters',name:'Kriegerquartier',desc:'Dieser Bau: +12 Armee-Plätze für Kämpferinnen',base:40},
+  {k:'barracks',name:'Kaserne',desc:'Kämpferinnen dieses Baus +10% Leben und Schaden, ihre Eier 8% billiger, +2 Armee-Plätze',base:60},
+  {k:'fungus',name:'Pilzgarten',desc:'Erzeugt 0,5 Futter pro Sekunde in diesem Bau',base:70},
+  {k:'guard',name:'Wachkammer',desc:'Der Bau schießt mit Säure auf nahe Angreifer: +8 Schaden pro Stufe (Grundwert 6)',base:55},
 ];
 const ROOMCOL={brood:'#f0d9a8',store:'#e0a94a',quarters:'#c47dff',barracks:'#ef5a3c',fungus:'#cfe3b0',guard:'#7fd1c4'};
 const roomCost=(r,l)=>Math.round(r.base*Math.pow(1.65,l));
@@ -537,47 +537,47 @@ const roomMax=n=>Math.min(6,n.level+1);
 const NEST_UP=[0,90,200,420,800,1400];const NEST_MAX=6;
 const TREES=[
   {id:'w',unit:0,name:'Sammlerinnen',col:'#ffd27a',nodes:[
-    {k:'carry',name:'Sammelkropf',desc:'Sammlerinnen tragen +1',base:50,mul:1.9,max:4},
+    {k:'carry',name:'Sammelkropf',desc:'Sammlerinnen tragen +1 Futter pro Gang',base:50,mul:1.9,max:4},
     {k:'wspd',name:'Flinke Füße',desc:'Sammlerinnen +10% Tempo',base:45,mul:1.8,max:4},
-    {k:'sense',name:'Feine Fühler',desc:'Sammlerinnen finden Futter 20% weiter weg',base:55,mul:1.8,max:3},
+    {k:'sense',name:'Feine Fühler',desc:'Sammlerinnen entdecken Futter aus 20% größerer Entfernung',base:55,mul:1.8,max:3},
     {k:'whp',name:'Zähe Haut',desc:'Sammlerinnen +40% Leben',base:50,mul:1.8,max:3},
-    {k:'harvest',name:'Reiche Ernte',desc:'Abgeliefertes Futter +25%',base:90,mul:2,max:2},
+    {k:'harvest',name:'Reiche Ernte',desc:'Futter, das Sammlerinnen und Trägerinnen heimbringen, zählt 25% mehr',base:90,mul:2,max:2},
   ]},
   {id:'t',unit:3,name:'Trägerinnen',col:'#e0a94a',req:{tree:'w',pts:4},nodes:[
-    {k:'bigcrop',name:'Riesenkropf',desc:'Trägerinnen fassen +5 Futter',base:70,mul:1.8,max:3},
+    {k:'bigcrop',name:'Riesenkropf',desc:'Trägerinnen fassen +5 Futter (Grundwert 10)',base:70,mul:1.8,max:3},
     {k:'cspd',name:'Lastenläuferin',desc:'Trägerinnen +12% Tempo',base:60,mul:1.8,max:3},
     {k:'chp',name:'Panzerrücken',desc:'Trägerinnen +50% Leben',base:60,mul:1.8,max:2},
-    {k:'hand',name:'Sammelstelle',desc:'Sammlerinnen finden Trägerinnen 40% weiter weg',base:80,mul:1.9,max:2},
+    {k:'hand',name:'Sammelstelle',desc:'Sammlerinnen geben ihr Futter an Trägerinnen aus 40% größerer Entfernung ab',base:80,mul:1.9,max:2},
   ]},
   {id:'k',unit:1,name:'Kriegerinnen',col:'#ef5a3c',nodes:[
     {k:'jaw',name:'Starke Kiefer',desc:'Kriegerinnen +15% Schaden',base:55,mul:1.7,max:5},
-    {k:'plate',name:'Brustplatte',desc:'Kriegerinnen +30% Leben',base:80,mul:1.85,max:4},
+    {k:'plate',name:'Brustplatte',desc:'Kriegerinnen +30% Leben, aber 3% langsamer',base:80,mul:1.85,max:4},
     {k:'rush',name:'Sturmlauf',desc:'Kriegerinnen +10% Tempo',base:50,mul:1.8,max:3},
-    {k:'drain',name:'Blutdurst',desc:'Kriegerinnen heilen sich um 10% ihres Schadens',base:90,mul:1.9,max:2},
+    {k:'drain',name:'Blutdurst',desc:'Kriegerinnen heilen sich um 10% des Schadens, den sie austeilen',base:90,mul:1.9,max:2},
   ]},
   {id:'s',unit:2,name:'Spuckerinnen',col:'#a6e05a',req:{tree:'k',pts:3},nodes:[
     {k:'acidp',name:'Ätzende Säure',desc:'Spuckerinnen +20% Schaden',base:70,mul:1.8,max:4},
-    {k:'range',name:'Weitspucken',desc:'+14 Reichweite',base:65,mul:1.8,max:3},
+    {k:'range',name:'Weitspucken',desc:'Spuckerinnen +14 Reichweite (Grundwert 88)',base:65,mul:1.8,max:3},
     {k:'rapid',name:'Schnellfeuer',desc:'Spuckerinnen spucken 12% schneller',base:75,mul:1.8,max:3},
     {k:'shp',name:'Säurehaut',desc:'Spuckerinnen +25% Leben',base:60,mul:1.8,max:3},
   ]},
   {id:'g',unit:4,name:'Riesinnen',col:'#c8442f',req:{tree:'k',pts:7},nodes:[
     {k:'gdmg',name:'Mahlkiefer',desc:'Riesinnen +20% Schaden',base:110,mul:1.8,max:3},
     {k:'ghp',name:'Titanpanzer',desc:'Riesinnen +30% Leben',base:110,mul:1.8,max:3},
-    {k:'quake',name:'Erdbeben',desc:'Flächenschaden der Riesinnen +50%',base:140,mul:1.9,max:2},
+    {k:'quake',name:'Erdbeben',desc:'Schaden an Gegnern neben dem Ziel der Riesin +50%',base:140,mul:1.9,max:2},
     {k:'gspd',name:'Wucht',desc:'Riesinnen +10% Tempo',base:90,mul:1.9,max:2},
   ]},
   {id:'b',unit:5,name:'Sprengameisen',col:'#ff9a3c',req:{tree:'s',pts:5},nodes:[
     {k:'bpow',name:'Größere Ladung',desc:'Explosionen +20% Schaden',base:90,mul:1.8,max:4},
-    {k:'brad',name:'Weite Explosion',desc:'Explosionsradius +12',base:100,mul:1.9,max:3},
+    {k:'brad',name:'Weite Explosion',desc:'Explosionsradius +12 (Grundwert 48)',base:100,mul:1.9,max:3},
     {k:'bspd',name:'Flinke Zünder',desc:'Sprengameisen +10% Tempo',base:70,mul:1.8,max:3},
   ]},
   {id:'c',name:'Kolonie',col:'#46b2ea',nodes:[
-    {k:'jelly',name:'Gelée Royale',desc:'Alle Königinnen legen 12% schneller',base:70,mul:1.8,max:4},
-    {k:'regen',name:'Wundpflege',desc:'Ameisen heilen sich im eigenen Revier',base:70,mul:1.9,max:3},
+    {k:'jelly',name:'Gelée Royale',desc:'Die Königinnen aller Baue legen 12% schneller Eier',base:70,mul:1.8,max:4},
+    {k:'regen',name:'Wundpflege',desc:'Ameisen im Revier eines eigenen Baus heilen 3% ihres Lebens pro Sekunde',base:70,mul:1.9,max:3},
     {k:'walls',name:'Lehmwälle',desc:'Baue +15% Leben',base:60,mul:1.8,max:4},
-    {k:'vet',name:'Veteranen',desc:'Ameisen steigen schneller im Rang, Ränge zählen mehr',base:90,mul:2,max:2},
-    {k:'flight',name:'Hochzeitsflug',desc:'Junge Königinnen 20% billiger und schneller',base:100,mul:2,max:2},
+    {k:'vet',name:'Veteranen',desc:'Kämpferinnen brauchen 25% weniger Kills pro Rang, jeder Rang gibt mehr Leben und Schaden',base:90,mul:2,max:2},
+    {k:'flight',name:'Hochzeitsflug',desc:'Junge Königinnen 20% billiger und 20% schneller',base:100,mul:2,max:2},
   ]},
 ];
 const NODES={};for(const t of TREES)for(const n of t.nodes){n.tree=t;NODES[n.k]=n}
@@ -590,18 +590,18 @@ function nodeLock(c,n){if(!treeOpen(c,n.tree))return 'gesperrt';if(n.need&&!c.sk
 const DOCS={
   k1:{tree:'k',pts:3,cost:150,title:'Spezialisierung',opts:[
     {id:'berserk',name:'Berserkerin',desc:'+40% Schaden, −20% Leben'},{id:'shield',name:'Schildwache',desc:'+60% Leben, −15% Tempo'},
-    {id:'venom',name:'Giftbiss',desc:'Bisse vergiften: +60% Schaden über 3 s'},{id:'blade',name:'Klingenläuferin',desc:'+25% Tempo, +15% Schaden'}]},
+    {id:'venom',name:'Giftbiss',desc:'Bisse vergiften 3 s lang: insgesamt +60% Schaden'},{id:'blade',name:'Klingenläuferin',desc:'+25% Tempo, +15% Schaden'}]},
   k2:{tree:'k',pts:7,cost:300,title:'Meisterschaft',opts:[
     {id:'phalanx',name:'Phalanx',desc:'In Legionen nehmen Kriegerinnen 30% weniger Schaden'},{id:'frenzy',name:'Blutrausch',desc:'Jeder Kill heilt die Kriegerin zur Hälfte'},
     {id:'execute',name:'Hinrichtung',desc:'Doppelter Schaden gegen Gegner unter 30% Leben'}]},
   s1:{tree:'s',pts:3,cost:180,title:'Spezialisierung',opts:[
     {id:'slow',name:'Ätzwolke',desc:'Getroffene Gegner sind 2 s lang 40% langsamer'},{id:'sniper',name:'Scharfschützin',desc:'+40% Reichweite, spuckt 25% seltener'},
-    {id:'spread',name:'Streufeuer',desc:'Jeder Spuck trifft zwei weitere Gegner mit halbem Schaden'},{id:'corrode',name:'Korrosion',desc:'Doppelter Schaden gegen Baue und Tiere'}]},
+    {id:'spread',name:'Streufeuer',desc:'Jeder Spuck trifft zwei weitere Gegner mit halbem Schaden'},{id:'corrode',name:'Korrosion',desc:'Doppelter Schaden gegen Baue, Weiden und Tiere'}]},
   g1:{tree:'g',pts:3,cost:250,title:'Spezialisierung',opts:[
-    {id:'ram',name:'Rammbock',desc:'+150% Schaden gegen Baue'},{id:'colossus',name:'Koloss',desc:'+50% Leben, größerer Flächenschaden'},
+    {id:'ram',name:'Rammbock',desc:'+150% Schaden gegen Baue'},{id:'colossus',name:'Koloss',desc:'+50% Leben, trifft Gegner in größerem Umkreis'},
     {id:'leader',name:'Anführerin',desc:'Legionen mit einer Riesin machen 20% mehr Schaden'}]},
   b1:{tree:'b',pts:3,cost:200,title:'Spezialisierung',opts:[
-    {id:'pool',name:'Säurepfütze',desc:'Explosion hinterlässt 5 s lang eine ätzende Pfütze'},{id:'stealth',name:'Tarnung',desc:'Gegner zielen nicht auf Sprengameisen'},
+    {id:'pool',name:'Säurepfütze',desc:'Explosion hinterlässt 5 s lang eine Säurepfütze, die Gegner verletzt'},{id:'stealth',name:'Tarnung',desc:'Gegner, Baue und Tiere zielen nicht auf deine Sprengameisen'},
     {id:'bigload',name:'Großladung',desc:'+60% Schaden, 30% langsamer'}]},
 };
 const docReady=(c,k)=>{const d=DOCS[k];return !c.doc[k]&&treeOpen(c,TREE[d.tree])&&treePts(c,TREE[d.tree])>=d.pts};
@@ -1140,7 +1140,7 @@ function updateAnt(a,dt){
   if(a.type===3){
     const cap=carrierCap(c);
     if(!a.ret&&(a.load>=cap*.85||(a.load>0&&time-a.lastRecv>8)))a.ret=true;
-    if(a.ret){moveTo(a,n.x,n.y,sp,dt);if(Math.hypot(n.x-a.x,n.y-a.y)<n.r*.55){const got=nestAdd(n,a.load);if(c.isPlayer&&got)n.fl+=got;a.load=0;a.ret=false}return}
+    if(a.ret){moveTo(a,n.x,n.y,sp,dt);if(Math.hypot(n.x-a.x,n.y-a.y)<n.r*.55){const got=nestAdd(n,a.load*(1+.25*c.sk.harvest));if(c.isPlayer&&got)n.fl+=got;a.load=0;a.ret=false}return}
     let sx,sy;if(n.zones.length){const z=n.zones[Math.floor(a.oa*7)%n.zones.length];sx=z.x;sy=z.y}else{sx=n.x+Math.cos(a.oa)*n.R*.5;sy=n.y+Math.sin(a.oa)*n.R*.5}
     wander(a,sx,sy,40,sp,dt,.6);return;
   }
@@ -1666,7 +1666,7 @@ function setRow(b,lvTxt,cost,can,max,lock){b.querySelector('.lv').textContent=lv
   b.classList.toggle('ok',!max&&!lock&&can);b.classList.toggle('max',max);b.classList.toggle('lock',!!lock)}
 const roomBtns={},nodeBtns={},docBtns={},planLbl=[],peopleRows=[];
 {const rl=$('roomList');
- roomBtns.level=mkRow(rl,'#ffd27a','Königinnenkammer','Bau-Stufe: mehr Leben, Platz, Revier und Raum-Stufen',()=>sel.nest&&tryNestUp(player,sel.nest));
+ roomBtns.level=mkRow(rl,'#ffd27a','Königinnenkammer','Bau-Stufe: +300 Leben, +6 Sammler- und +3 Armee-Plätze, +100 Lager, größeres Revier, 10% schnellere Eier, Räume eine Stufe höher',()=>sel.nest&&tryNestUp(player,sel.nest));
  for(const r of ROOMS)roomBtns[r.k]=mkRow(rl,ROOMCOL[r.k],r.name,r.desc,()=>sel.nest&&tryRoom(player,sel.nest,r.k));
  const pl=$('trainList');
  for(const t of [1,2,4,5,0,3]){const u=UNIT[t],d=document.createElement('div');d.className='tr';
