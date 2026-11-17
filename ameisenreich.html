@@ -423,6 +423,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
       <kbd>R</kbd><span>Legion zusammenstellen: du wählst, wie viele Kriegerinnen, Spuckerinnen usw. mitgehen. Shift + R nimmt alle.</span>
       <kbd>Shift</kbd><span>Shift + 1–5 oder Shift + Klick wählt mehrere Legionen, Q wählt alle. Sie marschieren zusammen.</span>
       <kbd>1–5</kbd><span>Legion wählen, dann auf die Karte klicken. Fremder Bau = Überfall.</span>
+      <kbd>Raub</kbd><span>Zerstört deine Legion einen Bau, nimmt sie die Königin gefangen. Bringst du sie lebend heim, bekommst du Ameisen, Futter und Fähigkeiten, gegen die Nummer 1 doppelt. Aber alle wollen sie befreien!</span>
     </div>
     <div class="meta">
       <div class="mh"><h4>Bernstein-Erbe</h4><span>Bernstein: <span class="amber" id="mAmber">0</span></span></div>
@@ -861,8 +862,10 @@ function explode(a){
 function destroyStruct(s,attCol){
   s.alive=false;const c=s.col;
   for(let i=0;i<30;i++)parts.push({x:s.x,y:s.y,vx:rnd(-170,170),vy:rnd(-170,170),l:rnd(.5,1.2),c:i%2?c.color:'#8a6a48',s:rnd(1.5,4)});
+  if(s.kind==='captive'){freeCaptive(s,attCol);return}
   if(s.kind==='nest'){
     c.nests=c.nests.filter(n=>n!==s);
+    if(attCol&&attCol!==GAIA)tryCapture(s,attCol);
     let drop=40*s.level+30;while(drop>0){const v=Math.min(drop,rnd(6,14));drop-=v;const a=rnd(TAU),d=rnd(s.r*2);addFood(s.x+Math.cos(a)*d,s.y+Math.sin(a)*d,6,Math.round(v))}
     if(attCol){nestAdd(nearestOwnNest(attCol,s.x,s.y),s.food*.5);s.food=0;attCol.nestKills++;if(attCol.isPlayer)toast(`Bau von ${c.name} zerstört!`,'good')}
     if(c.isPlayer&&c.nests.length)toast('Einer deiner Baue ist gefallen!','bad');
@@ -875,6 +878,55 @@ function destroyStruct(s,attCol){
     if(c.isPlayer)toast('Deine junge Königin wurde getötet','bad');
   }
   if(!c.nests.length&&!c.travelers.length)eliminate(c,attCol);
+}
+/* ---------- queen raid: a legion that razes a nest drags its queen home ---------- */
+function tryCapture(s,att){
+  const L=att.legions.find(L=>L.size>=3&&!L.captive&&Math.hypot(L.cx-s.x,L.cy-s.y)<s.r+260);if(!L)return null;
+  const v=s.col,top=v.strength>0&&colonies.every(o=>o===v||o.strength<=v.strength);
+  const home=[0,0,0,0,0,0];for(const a of ants)if(a.alive&&a.home===s&&!a.legion)home[a.type]++;
+  const m=top?2:1,share=1/Math.max(1,v.nests.length+1),lootA=home.map((k,t)=>Math.round((v.cnt[t]*share*.6+k*.5)*m));lootA[0]+=4;
+  {const want=(10+6*s.level)*m,have=lootA.reduce((x,y)=>x+y,0);if(have<want){lootA[0]+=Math.ceil((want-have)*.6);lootA[1]+=Math.floor((want-have)*.4)}}
+  const sk=SKKEYS.filter(k=>v.sk[k]>att.sk[k]).sort(()=>Math.random()-.5).slice(0,top?6:3);
+  const q={kind:'captive',col:att,vic:v,L,x:s.x,y:s.y,r:13,hp:420+60*s.level,maxHp:420+60*s.level,alive:true,a:0,step:0,hurt:0,lastHit:-99,
+    loot:{ants:lootA,food:Math.round((s.food*.5+v.bank*share*.3+120*s.level)*m),sk,top,amber:top?15:5},vname:v.name,vcolor:v.color,vdark:v.dark};
+  L.captive=q;L.target=null;legionHome(L,false);structs.push(q);
+  const tot=lootA.reduce((a,b)=>a+b,0);
+  feed(`<b>${esc(att.name)}</b> verschleppt die Königin von <b>${esc(v.name)}</b>`);
+  if(att.isPlayer){toast(`Königin von ${v.name} gefangen!${top?' Die Nummer 1!':''}`,'good');
+    tip(`Bring sie lebend zu einem deiner Baue: ${tot} Ameisen, ${q.loot.food} Futter${sk.length?` und ${sk.length} Fähigkeiten`:''} warten. Alle in der Nähe werden versuchen, sie zu befreien!`)}
+  if(v.isPlayer&&v.nests.length>1){toast('Deine Königin wurde verschleppt! Hol sie zurück','bad');marks.push({x:q.x,y:q.y,t:time,c:'#ef5a3c',r:60,ping:1})}
+  return q;
+}
+function updateCaptive(q,dt){
+  const c=q.col,L=q.L;q.hurt-=dt;
+  if(!c.alive||!L||!c.legions.includes(L)||L.size<1){freeCaptive(q,null);return}
+  const home=nearestOwnNest(c,q.x,q.y);
+  if(home&&Math.hypot(home.x-q.x,home.y-q.y)<home.r+45){deliverCaptive(q,home);return}
+  const dx=L.tx-q.x,dy=L.ty-q.y,d=Math.hypot(dx,dy),sp=42*(rainEnd>time?.75:1);
+  if(d>4){q.a=Math.atan2(dy,dx);const m=Math.min(d,sp*dt);q.x=clamp(q.x+dx/d*m,20,WORLD-20);q.y=clamp(q.y+dy/d*m,20,WORLD-20);q.step+=m*.2}
+}
+function deliverCaptive(q,home){
+  q.alive=false;const c=q.col,lo=q.loot;if(q.L)q.L.captive=null;
+  let k=0;for(let t=0;t<6;t++){const tt=unlocked(c,t)?t:isFighter(t)?1:0;
+    for(let i=0;i<lo.ants[t]&&ants.length<MAXANTS;i++){const a=rnd(TAU),d=rnd(home.r*.5,home.r*1.8);spawnAnt(c,home,tt,home.x+Math.cos(a)*d,home.y+Math.sin(a)*d);k++}}
+  let f=lo.food;f-=nestAdd(home,f);for(const n of c.nests)if(f>0)f-=nestAdd(n,f);
+  const got=[];for(const key of lo.sk){const nd=NODES[key];if(c.sk[key]<nd.max&&!nodeLock(c,nd)){c.sk[key]++;got.push(nd.name)}}
+  if(got.length){refreshHp(c);for(const n of c.nests)updNest(n)}
+  for(let i=0;i<40;i++)parts.push({x:home.x,y:home.y,vx:rnd(-160,160),vy:rnd(-160,160),l:rnd(.6,1.3),c:i%2?'#ffd27a':q.vcolor,s:rnd(2,4)});
+  feed(`<b>${esc(c.name)}</b> bringt die Königin von <b>${esc(q.vname)}</b> heim`);
+  if(c.isPlayer){meta.amber+=lo.amber;store.set(MKEY,meta);checkTrees(c);
+    toast(`Königin heimgebracht! +${k} Ameisen, +${Math.round(lo.food-Math.max(0,f))} Futter`,'good');
+    tip((got.length?`Erbeutetes Wissen: ${got.join(', ')}. `:'')+`+${lo.amber} Bernstein`+(lo.top?' · Bonus für die Nummer 1!':''))}
+}
+function freeCaptive(q,killer){
+  q.alive=false;if(q.L&&q.L.captive===q)q.L.captive=null;const v=q.vic;
+  for(let i=0;i<24;i++)parts.push({x:q.x,y:q.y,vx:rnd(-140,140),vy:rnd(-140,140),l:rnd(.5,1.1),c:i%2?q.vcolor:'#f1d9a6',s:rnd(1.5,3.5)});
+  if(killer&&killer===v&&v.alive&&v.nests.length){/* rescued by her own people: part of the folk comes back */
+    const n=nearestOwnNest(v,q.x,q.y);for(let t=0;t<6;t++)for(let i=0;i<Math.round(q.loot.ants[t]*.5)&&ants.length<MAXANTS;i++)spawnAnt(v,n,unlocked(v,t)?t:0,q.x+rnd(-30,30),q.y+rnd(-30,30));
+    feed(`<b>${esc(v.name)}</b> befreit ihre Königin`);if(v.isPlayer)toast('Königin befreit! Ein Teil des Volkes kehrt zurück','good')}
+  else{let left=Math.round(q.loot.food*.4);while(left>0){const val=Math.min(left,rnd(10,20));left-=val;const a=rnd(TAU),d=rnd(8,60);addFood(q.x+Math.cos(a)*d,q.y+Math.sin(a)*d,6,Math.round(val))}
+    feed(`Die Königin von <b>${esc(q.vname)}</b> ist tot`)}
+  if(q.col.isPlayer)toast('Die gefangene Königin ist verloren!','bad');
 }
 function eliminate(c,killer){
   if(!c.alive)return;c.alive=false;
@@ -964,7 +1016,7 @@ function updateEvents(dt){
 }
 
 /* ---------- ant AI ---------- */
-function slotPos(a,L){const k=a.slot+.5,r=11*Math.sqrt(k)+(L.target?L.target.r*.7:0),ang=a.slot*2.39996;return[L.tx+Math.cos(ang)*r,L.ty+Math.sin(ang)*r]}
+function slotPos(a,L){const q=L.captive,k=a.slot+.5,r=11*Math.sqrt(k)+(L.target?L.target.r*.7:q?22:0),ang=a.slot*2.39996,cx=q?q.x:L.tx,cy=q?q.y:L.ty;return[cx+Math.cos(ang)*r,cy+Math.sin(ang)*r]}
 function areaOf(a){const n=a.home;if(a.area>=0&&a.area<n.zones.length){const z=n.zones[a.area];return[z.x,z.y,z.r]}return[n.x,n.y,n.R]}
 function antThink(a){
   const c=a.col,n=a.home;
@@ -996,7 +1048,7 @@ function antThink(a){
   a.enemy=e;
   if(!e){
     if(L&&L.target&&L.target.alive){if(Math.hypot(L.target.x-a.x,L.target.y-a.y)<L.target.r+sense+40)a.es=L.target}
-    else{const s=nearestEnemyStruct(a.x,a.y,c,sense);if(s&&(s.x-ax)**2+(s.y-ay)**2<(leash+s.r)**2&&(L||s.kind==='queen'||Math.hypot(s.x-n.x,s.y-n.y)<n.R))a.es=s}
+    else{const s=nearestEnemyStruct(a.x,a.y,c,sense);if(s&&(s.x-ax)**2+(s.y-ay)**2<(leash+s.r)**2&&(L||s.kind==='queen'||s.kind==='captive'||Math.hypot(s.x-n.x,s.y-n.y)<n.R))a.es=s}
   }
 }
 function moveTo(a,tx,ty,sp,dt){
@@ -1121,11 +1173,17 @@ function updateAI(c,dt){
     if(rich.food>rich.cap*.55&&poor.food<poor.cap*.25)moveFood(rich,poor,rich.food*.3)}
   botSpend(c);if(Math.random()<.4)botSpend(c);
   for(const L of c.legions){
+    if(L.captive){const h=nearestOwnNest(c,L.captive.x,L.captive.y);if(h){L.tx=h.x;L.ty=h.y;L.target=null;L.defend=false;L.disband=false}continue}
     if(threat&&!L.defend&&(!L.target||Math.hypot(L.cx-threat.x,L.cy-threat.y)<900)){L.target=null;L.tx=threat.x;L.ty=threat.y;L.defend=true;L.disband=false}
     else if(L.defend&&!threat)legionHome(L,true);
     else if(L.target&&!L.target.alive)legionHome(L,true);
     else if(!L.disband&&!L.defend&&L.size<L.init*.35)legionHome(L,true);
   }
+  if(!threat)for(const q of structs)if(q.kind==='captive'&&q.alive&&q.col!==c&&knows(c,q.x,q.y)&&Math.hypot(q.x-main.x,q.y-main.y)<1500){
+    if(c.legions.some(l=>l.target===q))break;
+    const L=c.legions.find(l=>!l.captive&&!l.defend);
+    if(L){L.target=q;L.disband=false}else if(main.gar>=5&&c.legions.length<3){const N=raiseLegion(c,.8,main);if(N){N.target=q;N.tx=q.x;N.ty=q.y}}
+    break}
   if(!threat&&ai.raidCd<=0&&c.legions.length<2){
     const gar=main.gar,need=8+3*c.nests.reduce((s,n)=>s+n.level,0);
     if(gar>=need){
@@ -1189,7 +1247,7 @@ function update(dt){
   botFogT-=dt;if(botFogT<=0){botFogT=1;updateBotFog()}
   for(const c of colonies){colCaps(c);if(!c.isPlayer)updateAI(c,dt)}
   updateEvents(dt);
-  for(const s of structs)if(s.alive){if(s.kind==='nest')updateNest(s,dt);else if(s.kind==='mob')updateMob(s,dt);else updateTraveler(s,dt)}
+  for(const s of structs)if(s.alive){if(s.kind==='nest')updateNest(s,dt);else if(s.kind==='mob')updateMob(s,dt);else if(s.kind==='captive')updateCaptive(s,dt);else updateTraveler(s,dt)}
   for(const c of colonies)for(const L of c.legions)if(L.target){if(L.target.alive){L.tx=L.target.x;L.ty=L.target.y}else{L.target=null;if(c.isPlayer)toast(`Legion ${ROM[L.num]}: Ziel vernichtet`,'good')}}
   for(let i=0,n=ants.length;i<n;i++){const a=ants[i];if(a.alive)updateAnt(a,dt)}
   for(const p of projs){const t=p.t;if(!t.alive){p.l=0;continue}const dx=t.x-p.x,dy=t.y-p.y,d=Math.hypot(dx,dy),st=340*dt;
@@ -1358,6 +1416,20 @@ function drawTraveler(q,z){
   if(c.isPlayer){ctx.strokeStyle='rgba(255,210,122,.35)';ctx.lineWidth=1.5/z;ctx.setLineDash([5/z,6/z]);ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(q.tx,q.ty);ctx.stroke();ctx.setLineDash([]);
     ctx.beginPath();ctx.arc(q.tx,q.ty,40,0,TAU);ctx.stroke()}
 }
+function drawCaptive(q,z){
+  const c=q.col,r=q.r*1.4,pulse=.5+.5*Math.sin(time*5);
+  ctx.strokeStyle=`rgba(${c.isPlayer?'255,210,122':'239,90,60'},${.35+.4*pulse})`;ctx.lineWidth=2/z;ctx.beginPath();ctx.arc(q.x,q.y,r+10+pulse*3,0,TAU);ctx.stroke();
+  if(c.isPlayer){const h=nearestOwnNest(c,q.x,q.y);if(h){ctx.strokeStyle='rgba(255,210,122,.4)';ctx.lineWidth=1.5/z;ctx.setLineDash([5/z,6/z]);ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(h.x,h.y);ctx.stroke();ctx.setLineDash([])}}
+  ctx.save();ctx.translate(q.x,q.y);ctx.rotate(q.a);
+  ctx.strokeStyle=q.vdark;ctx.lineWidth=1.6;ctx.beginPath();
+  for(let k=-1;k<=1;k++)for(let sd=-1;sd<=1;sd+=2){const sw=Math.sin(q.step+k*2.1+(sd>0?Math.PI:0))*r*.12;ctx.moveTo(r*.2+k*r*.14,0);ctx.lineTo(r*.2+k*r*.5+sw,sd*r*.8)}ctx.stroke();
+  ctx.fillStyle=q.hurt>0?'#fff':q.vcolor;ctx.beginPath();ctx.ellipse(-r*.42,0,r*.75,r*.52,0,0,TAU);ctx.fill();
+  ctx.fillStyle=q.vdark;ctx.beginPath();ctx.arc(r*.25,0,r*.28,0,TAU);ctx.fill();ctx.beginPath();ctx.arc(r*.68,0,r*.25,0,TAU);ctx.fill();
+  ctx.fillStyle='#ffd27a';ctx.fillRect(r*.15,-r*.12,r*.2,r*.24);
+  ctx.strokeStyle='#c9b9a0';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(-r*.42,0,r*.6,-1.2,1.2);ctx.stroke();ctx.restore();
+  label(c.isPlayer?'Gefangene Königin · bring sie heim!':q.vic.isPlayer?'Deine Königin · befreie sie!':`Gefangen: ${q.vname}`,q.x,q.y-r-14/z,Math.max(11/z,8),c.isPlayer?'#ffd27a':'#ff8a70');
+  hpBar(q.x,q.y+r+6/z,r*2.4,Math.max(3/z,3),q.hp/q.maxHp);
+}
 function drawMob(m,z){
   const D=MOBS[m.type],r=m.r,hurt=m.hurt>0;
   if(m.type==='antlion'){const P=D.pit,g=ctx.createRadialGradient(m.x,m.y,3,m.x,m.y,P);g.addColorStop(0,'#1e1208');g.addColorStop(.45,'#7a5a34');g.addColorStop(1,'rgba(150,120,80,0)');
@@ -1446,6 +1518,7 @@ function render(){
   for(const s of stomps)if(inV(s.x,s.y,s.r*1.6))drawStomp(s,z);
   for(const p of projs){if(!seen(p.x,p.y))continue;ctx.fillStyle=p.col;ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,TAU);ctx.fill()}
   for(const s of structs)if(s.kind==='queen'&&(s.col.isPlayer||seen(s.x,s.y)))drawTraveler(s,z);
+  for(const s of structs)if(s.kind==='captive'&&(s.col.isPlayer||s.vic.isPlayer||seen(s.x,s.y)))drawCaptive(s,z);
   for(const c of colonies)for(const L of c.legions)if(L.size&&L.cx>vx0-100&&L.cx<vx1+100&&L.cy>vy0-100&&L.cy<vy1+100&&(c.isPlayer||seen(L.cx,L.cy)))drawLegion(L,z);
   if(fogOn()){ctx.imageSmoothingEnabled=true;ctx.drawImage(fogCv,0,0,FW,FW,0,0,FW*FOGC,FW*FOGC)}
   for(const m of marks){const k=(time-m.t)/(m.ping?3:1.2);ctx.globalAlpha=1-k;ctx.strokeStyle=m.c;ctx.lineWidth=2.5/z;ctx.beginPath();ctx.arc(m.x,m.y,m.r*(m.ping?1+k*2:1.4-k*.4),0,TAU);ctx.stroke()}
@@ -1476,7 +1549,8 @@ function renderMini(){
   for(const e of events){const p=.5+.5*Math.sin(time*5);mctx.strokeStyle=e.col;mctx.lineWidth=1.5*DPR;mctx.globalAlpha=.5+p*.5;
     const ex=(e.obj&&e.obj.alive?e.obj.x:e.x)*s,ey=(e.obj&&e.obj.alive?e.obj.y:e.y)*s;mctx.beginPath();mctx.moveTo(ex,ey-5*DPR);mctx.lineTo(ex+5*DPR,ey);mctx.lineTo(ex,ey+5*DPR);mctx.lineTo(ex-5*DPR,ey);mctx.closePath();mctx.stroke()}
   mctx.globalAlpha=1;
-  for(const st of structs){if(!st.col.isPlayer&&!(st.kind==='nest'?known(st.x,st.y):seen(st.x,st.y)))continue;if(st.kind==='mob'){mctx.fillStyle=MOBS[st.type].col;mctx.beginPath();mctx.arc(st.x*s,st.y*s,2*DPR,0,TAU);mctx.fill();continue}
+  for(const st of structs){if(!st.col.isPlayer&&!(st.vic&&st.vic.isPlayer)&&!(st.kind==='nest'?known(st.x,st.y):seen(st.x,st.y)))continue;
+    if(st.kind==='captive'){mctx.strokeStyle=st.col.isPlayer?'#ffd27a':'#ef5a3c';mctx.lineWidth=1.5*DPR;mctx.beginPath();mctx.arc(st.x*s,st.y*s,(3+Math.sin(time*5))*DPR,0,TAU);mctx.stroke();continue}if(st.kind==='mob'){mctx.fillStyle=MOBS[st.type].col;mctx.beginPath();mctx.arc(st.x*s,st.y*s,2*DPR,0,TAU);mctx.fill();continue}
     mctx.fillStyle=st.col.color;const r=st.kind==='nest'?(2+st.level*.6)*DPR:1.6*DPR;
     if(st.kind==='nest')mctx.fillRect(st.x*s-r,st.y*s-r,r*2,r*2);else{mctx.beginPath();mctx.arc(st.x*s,st.y*s,r,0,TAU);mctx.fill()}
     if(st.col.isPlayer){mctx.strokeStyle='#fff';mctx.lineWidth=DPR;mctx.strokeRect(st.x*s-r,st.y*s-r,r*2,r*2)}}
@@ -1645,9 +1719,9 @@ function hudTick(){
     setRow($('splitBtn'),full?'Limit':n.level<2?'ab Stufe 2':'',sc,!full&&n.level>=2&&n.food>=sc,full);}
   let gar=0;for(const nn of c.nests)gar+=nn.gar;$('garN').textContent=gar;$('raiseBtn').classList.toggle('dis',gar<1||c.legions.length>=5);
   fixSel();
-  const sig=c.legions.map(L=>L.num+':'+L.size+':'+(L.mix||[]).join(',')+':'+(L.target?'a':L.disband?'d':'m')+(sel.legion===L?'s':sel.multi.has(L)?'g':'')).join('|');
+  const sig=c.legions.map(L=>L.num+':'+L.size+':'+(L.mix||[]).join(',')+':'+(L.captive?'c':L.target?'a':L.disband?'d':'m')+(sel.legion===L?'s':sel.multi.has(L)?'g':'')).join('|');
   if(sig!==legSig){legSig=sig;$('legList').innerHTML=c.legions.map(L=>{const mx=[1,2,4,5].filter(t=>L.mix&&L.mix[t]).map(t=>`<i style="color:${UNIT[t].col}" title="${UNIT[t].pl}">●${L.mix[t]}</i>`).join('');
-    return `<button class="leg${sel.legion===L?' sel':sel.multi.has(L)?' grp':''}" type="button" data-n="${L.num}"><kbd>${L.num+1}</kbd><span class="num">${ROM[L.num]}</span><span class="cnt">${L.size} ⚔</span><span class="mx">${mx}</span><span class="st">${L.target?'Angriff':L.disband?'Heimweg':'Marsch'}</span></button>`}).join('')}
+    return `<button class="leg${sel.legion===L?' sel':sel.multi.has(L)?' grp':''}" type="button" data-n="${L.num}"><kbd>${L.num+1}</kbd><span class="num">${ROM[L.num]}</span><span class="cnt">${L.size} ⚔</span><span class="mx">${mx}</span><span class="st">${L.captive?'Beute':L.target?'Angriff':L.disband?'Heimweg':'Marsch'}</span></button>`}).join('')}
   $('legAct').hidden=!sel.legion;const ng=selLegs().length;$('legGrp').textContent=ng>1?`${ng} Legionen gewählt`:'';
   if(!$('raise').hidden)rsTick(c);
   if(!$('ovw').hidden)ovwTick(c);
@@ -1737,7 +1811,7 @@ function ovwTick(c){
     (c.nests.length>1?`<tr class="tot"><td>Gesamt</td><td></td><td></td><td>${fmt(tf)} / ${fmt(tc)}</td>${types.map(t=>`<td>${tot[t]}</td>`).join('')}<td>${tg}</td><td></td></tr>`:''));
   const ft=[1,2,4,5].filter(t=>unlocked(c,t)||c.cnt[t]);
   setH('ovLegs',c.legions.length?`<tr><th>Legion</th><th>Größe</th>${ft.map(t=>`<th><span style="color:${UNIT[t].col}">●</span> ${UNIT[t].pl}</th>`).join('')}<th style="text-align:left">Auftrag</th></tr>`+
-    c.legions.map(L=>`<tr class="cl" data-n="${L.num}"><td>Legion ${ROM[L.num]}</td><td><b>${L.size}</b></td>${ft.map(t=>`<td>${num(L.mix?L.mix[t]:0)}</td>`).join('')}<td class="l">${L.target?'Angriff: '+esc(L.target.kind==='mob'?MOBS[L.target.type].name:L.target.col.name):L.defend?'Verteidigung':L.disband?'Heimweg':'Marsch'}</td></tr>`).join('')
+    c.legions.map(L=>`<tr class="cl" data-n="${L.num}"><td>Legion ${ROM[L.num]}</td><td><b>${L.size}</b></td>${ft.map(t=>`<td>${num(L.mix?L.mix[t]:0)}</td>`).join('')}<td class="l">${L.captive?'Königin heimbringen':L.target?'Angriff: '+esc(L.target.kind==='mob'?MOBS[L.target.type].name:L.target.col.name):L.defend?'Verteidigung':L.disband?'Heimweg':'Marsch'}</td></tr>`).join('')
     :'<tr><td class="l">Keine Legion unterwegs. Mit R stellst du eine zusammen.</td></tr>');
   const inLeg=c.legions.reduce((s,L)=>s+L.size,0);
   setH('ovSum',`<span>Sammler-Plätze <b>${c.popW} / ${c.capW}</b></span><span>Armee-Plätze <b>${c.popA} / ${c.capA}</b></span><span>Kämpferinnen in Garnison <b>${tg}</b></span><span>in Legionen <b>${inLeg}</b></span><span>Futter gesamt <b>${fmt(c.bank)}</b></span>`);
