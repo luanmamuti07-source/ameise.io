@@ -132,6 +132,26 @@ h3.sec{margin:14px 0 6px;font-family:var(--f-display);font-size:12px;font-weight
 .rr .bs{display:flex;gap:4px}
 #rsPre{margin:4px 0 10px}
 #rsAct{margin-top:12px}
+#ovw{left:50%;top:50%;transform:translate(-50%,-50%);width:min(980px,calc(100vw - 24px));max-height:min(86vh,780px);overflow-y:auto;padding:16px 18px 18px;z-index:8;background:rgba(22,14,8,.96)}
+#ovw .ph h2{font-size:24px}
+.ovt{overflow-x:auto;margin-top:6px}
+.ovt table{width:100%;border-collapse:collapse;font-size:12px}
+.ovt th{text-align:right;color:var(--muted);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.ovt td{text-align:right;padding:6px;border-bottom:1px solid rgba(242,169,59,.08);white-space:nowrap}
+.ovt th:first-child,.ovt td:first-child{text-align:left}
+.ovt td.l{text-align:left;color:var(--muted)}
+.ovt tr.cl{cursor:pointer}
+.ovt tr.cl:hover td{background:rgba(242,169,59,.08)}
+.ovt tr.tot td{font-weight:700;color:var(--amber-hi);border-top:1px solid var(--line)}
+.ovt tr.hit td:first-child{color:#ff8a70}
+.ovt .z{color:rgba(179,156,130,.4)}
+.ovt .warn{color:#ffb09e}
+.ovt .hb{display:inline-block;width:46px;height:5px;border-radius:3px;background:rgba(255,255,255,.08);vertical-align:middle;margin-right:5px;overflow:hidden}
+.ovt .hb i{display:block;height:100%;background:var(--leaf)}
+.ovt .hb.low i{background:var(--danger)}
+.ovsum{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.ovsum b{color:var(--text)}
+#ovBtn{grid-column:1 / -1}
 
 /* evolution sheet */
 #evo{left:50%;top:50%;transform:translate(-50%,-50%);width:min(1100px,calc(100vw - 24px));max-height:min(88vh,860px);overflow-y:auto;padding:16px 18px 18px;z-index:8;background:rgba(22,14,8,.96)}
@@ -297,7 +317,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
   <div class="row"><span>Baue</span><b id="sNests">1</b></div>
   <div class="row"><span>Stärke</span><b id="sScore">0</b></div>
   <div class="row" id="shieldRow"><span>Gründungsschutz</span><b id="sShield">0 s</b></div>
-  <div class="sbtns"><button class="btn evoBtn" id="evoBtn" type="button">Evolution <kbd>E</kbd><span class="dot" id="evoDot" hidden></span></button><button class="btn" id="lgBtn" type="button">Logistik <kbd>L</kbd></button></div>
+  <div class="sbtns"><button class="btn evoBtn" id="evoBtn" type="button">Evolution <kbd>E</kbd><span class="dot" id="evoDot" hidden></span></button><button class="btn" id="lgBtn" type="button">Logistik <kbd>L</kbd></button><button class="btn" id="ovBtn" type="button">Übersicht aller Baue <kbd>O</kbd></button></div>
 </div>
 
 <div id="lb" class="hud panel"><h3>Bestenliste</h3><ol id="lbList"></ol></div>
@@ -358,6 +378,15 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
   </div>
 </div>
 
+<div id="ovw" class="hud panel" hidden>
+  <div class="ph"><div><h2>Reichsübersicht</h2><small>Alle Baue und Legionen auf einen Blick. Klick auf einen Bau springt hin und öffnet ihn.</small></div><button class="x" id="ovClose" type="button" aria-label="Schließen">×</button></div>
+  <h3 class="sec">Baue</h3>
+  <div class="ovt"><table id="ovNests"></table></div>
+  <h3 class="sec">Legionen unterwegs</h3>
+  <div class="ovt"><table id="ovLegs"></table></div>
+  <div class="ovsum" id="ovSum"></div>
+</div>
+
 <div id="raise" class="hud panel" hidden>
   <div class="ph"><div><h2>Legion zusammenstellen</h2><small>Wähle, welche Kämpferinnen mitmarschieren. Der Rest bleibt als Garnison im Bau.</small></div><button class="x" id="rsClose" type="button" aria-label="Schließen">×</button></div>
   <div class="lgsel"><label for="rsFrom">Aus<select class="sel" id="rsFrom"></select></label></div>
@@ -372,7 +401,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
 <canvas id="mini" class="hud" hidden></canvas>
 <div id="feed" class="hud"></div>
 <div id="toasts" class="hud"></div>
-<div id="hint" class="hud" hidden><b>Ziehen</b>/<b>WASD</b> Karte · <b>Rad</b> Zoom<br><b>Klick Bau</b> Räume, Brut, Gebiete<br><kbd>E</kbd> Evolution · <kbd>R</kbd> Legion bilden<br><kbd>1</kbd>–<kbd>5</kbd> Legion wählen, dann Klick<br><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>5</kbd>/Klick: mehrere · <kbd>Q</kbd> alle<br>Klick auf fremden Bau = Überfall</div>
+<div id="hint" class="hud" hidden><b>Ziehen</b>/<b>WASD</b> Karte · <b>Rad</b> Zoom<br><b>Klick Bau</b> Räume, Brut, Gebiete<br><kbd>E</kbd> Evolution · <kbd>O</kbd> Übersicht<br><kbd>R</kbd> Legion bilden<br><kbd>1</kbd>–<kbd>5</kbd> Legion wählen, dann Klick<br><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>5</kbd>/Klick: mehrere · <kbd>Q</kbd> alle<br>Klick auf fremden Bau = Überfall</div>
 <div id="touch" class="hud" hidden><button id="zIn" type="button" aria-label="Hineinzoomen">+</button><button id="zOut" type="button" aria-label="Herauszoomen">−</button></div>
 
 <div id="start" class="overlay">
@@ -387,7 +416,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
     <button class="go2" id="shopBtn" type="button">Schatzkammer · Ameisen- und Bau-Skins</button>
     <div class="daily" id="dailyLine" hidden></div>
     <div class="how">
-      <kbd>Klick Bau</kbd><span>Räume, Ausbildung, Sammelgebiete. L verschiebt Ameisen und Futter.</span>
+      <kbd>Klick Bau</kbd><span>Räume, Ausbildung, Sammelgebiete. L verschiebt Ameisen und Futter, O zeigt alle Baue mit ihren Truppen.</span>
       <kbd>Ereignisse</kbd><span>Riesenkäfer, Würmer, heruntergefallenes Eis, aber auch Spinnen und Riesenschuhe. Klick ein Ereignis rechts an, um hinzuspringen.</span>
       <kbd>E</kbd><span>Evolution: jede Ameisenart hat ihren eigenen Baum. Fortschritt schaltet neue Bäume und Arten frei, Kämpferinnen bekommen einmalige Spezialisierungen.</span>
       <kbd>Nebel</kbd><span>Du siehst nur, was deine Ameisen sehen. Sammlerinnen und Legionen erkunden die Karte.</span>
@@ -1503,7 +1532,7 @@ const evoPayNest=()=>{const id=$('evoPay').value;return player&&(player.nests.fi
    d.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{if(lg.from&&lg.to&&lg.from!==lg.to&&lg.from.alive&&lg.to.alive){act(b.dataset.q);hudTick()}}));box.appendChild(d);return d};
  lg.rows.push(mk('#ffd27a','Futter',['25','100','half'],q=>{const f=lg.from,v=q==='half'?f.food/2:+q;const m=moveFood(f,lg.to,v);if(m)floats.push({x:lg.to.x,y:lg.to.y-lg.to.r-10,t:'+'+m,l:1.1,c:'#ffd27a'});else tip(lg.to.food>=lg.to.cap-1?'Das Lager im Zielbau ist voll':'Kein Futter zum Verschieben')}));
  UNIT.forEach((u,t)=>lg.rows.push(mk(u.col,u.pl,['1','5','all'],q=>{const k=transfer(player,lg.from,lg.to,t,q==='all'?1e9:+q);if(k)toast(`${k} ${k===1?u.name:u.pl} → ${nestName(lg.to)}`)})));}
-function openLogi(from){if(!player)return;closeEvo();closeRaise();lg.from=from||sel.nest||player.nests[0];lg.to=player.nests.find(n=>n!==lg.from)||null;lgSig='';$('logi').hidden=false;hudTick()}
+function openLogi(from){if(!player)return;closeEvo();closeRaise();closeOvw();lg.from=from||sel.nest||player.nests[0];lg.to=player.nests.find(n=>n!==lg.from)||null;lgSig='';$('logi').hidden=false;hudTick()}
 function closeLogi(){$('logi').hidden=true}
 let lgSig='';
 $('lgBtn').addEventListener('click',()=>$('logi').hidden?openLogi():closeLogi());$('lgClose').addEventListener('click',closeLogi);$('npLogi').addEventListener('click',()=>openLogi(sel.nest));
@@ -1559,7 +1588,7 @@ $('shClose').addEventListener('click',()=>{$('shop').hidden=true;$('start').hidd
 function selectNest(n){sel.nest=n;$('nestPanel').hidden=false;qSig='';$('autoW').checked=n.auto;hudTick()}
 function closePanel(){sel.nest=null;$('nestPanel').hidden=true}
 $('npClose').addEventListener('click',closePanel);
-function openEvo(){closeLogi();closeRaise();payOptSig='';$('evo').hidden=false;hudTick()}
+function openEvo(){closeLogi();closeRaise();closeOvw();payOptSig='';$('evo').hidden=false;hudTick()}
 $('evoPay').addEventListener('change',()=>hudTick());function closeEvo(){$('evo').hidden=true}
 $('evoBtn').addEventListener('click',()=>{$('evo').hidden?openEvo():closeEvo()});$('evoClose').addEventListener('click',closeEvo);
 function zoneProblem(n,x,y){if(Math.hypot(n.x-x,n.y-y)>1500)return 'Zu weit vom Bau (max. 1500)';if(n.zones.length>=3)return 'Maximal 3 Gebiete pro Bau';return null}
@@ -1621,6 +1650,7 @@ function hudTick(){
     return `<button class="leg${sel.legion===L?' sel':sel.multi.has(L)?' grp':''}" type="button" data-n="${L.num}"><kbd>${L.num+1}</kbd><span class="num">${ROM[L.num]}</span><span class="cnt">${L.size} ⚔</span><span class="mx">${mx}</span><span class="st">${L.target?'Angriff':L.disband?'Heimweg':'Marsch'}</span></button>`}).join('')}
   $('legAct').hidden=!sel.legion;const ng=selLegs().length;$('legGrp').textContent=ng>1?`${ng} Legionen gewählt`:'';
   if(!$('raise').hidden)rsTick(c);
+  if(!$('ovw').hidden)ovwTick(c);
   let dl=0;for(const nn of c.nests)if(time-nn.lastHit<2)dl=.6;for(const s of stomps)if(!s.done&&c.nests.some(nn=>Math.hypot(nn.x-s.x,nn.y-s.y)<s.r+200))dl=Math.max(dl,.4+.3*Math.sin(time*10));$('danger').style.opacity=dl;
   const evp=$('evPanel');evp.hidden=!events.length||innerWidth<=700;
   if(!evp.hidden){evp.style.top=($('lb').getBoundingClientRect().bottom+8)+'px';
@@ -1665,7 +1695,7 @@ function rsAvail(c,t){let k=0;for(const n of c.nests)if(!rs.from||n===rs.from)k+
   box.appendChild(d);rs.rows[t]=d}}
 function rsPreset(p){if(!player)return;for(const t of RS_T){const av=rsAvail(player,t);rs.n[t]=p==='all'?av:p==='half'?Math.ceil(av/2):p==='melee'?(t===1||t===4?av:0):p==='spit'?(t===2?av:0):0}hudTick()}
 $('rsPre').addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(b)rsPreset(b.dataset.p)});
-function openRaise(){if(!player)return;closeEvo();closeLogi();if(rs.from&&!rs.from.alive)rs.from=null;rs.sig='';$('raise').hidden=false;rsPreset('all')}
+function openRaise(){if(!player)return;closeEvo();closeLogi();closeOvw();if(rs.from&&!rs.from.alive)rs.from=null;rs.sig='';$('raise').hidden=false;rsPreset('all')}
 function closeRaise(){$('raise').hidden=true}
 $('rsClose').addEventListener('click',closeRaise);
 $('rsFrom').addEventListener('change',e=>{rs.from=player.nests.find(n=>String(n.id)===e.target.value)||null;rsPreset('all')});
@@ -1687,6 +1717,31 @@ function rsDo(into){if(!player)return;const L=raiseMix(player,rs.n,rs.from,into)
   if(!L)return tip(!into&&player.legions.length>=5?'Maximal 5 Legionen':'Keine Kämpferinnen gewählt');
   const k=RS_T.reduce((a,t)=>a+rs.n[t],0);closeRaise();selectLegion(L);toast(into?`${k} Kämpferinnen stoßen zu Legion ${ROM[L.num]}`:`Legion ${ROM[L.num]} ausgehoben: ${L.size} Kämpferinnen`,'good')}
 $('rsGo').addEventListener('click',()=>rsDo(null));$('rsAdd').addEventListener('click',()=>rsDo(sel.legion));
+/* empire overview: every nest with its troops, plus legions in the field */
+function openOvw(){if(!player)return;closeEvo();closeLogi();closeRaise();$('ovw').hidden=false;hudTick()}
+function closeOvw(){$('ovw').hidden=true}
+$('ovBtn').addEventListener('click',()=>$('ovw').hidden?openOvw():closeOvw());$('ovClose').addEventListener('click',closeOvw);
+$('ovNests').addEventListener('pointerdown',e=>{const tr=e.target.closest('tr[data-id]');if(!tr||!player)return;const n=player.nests.find(x=>String(x.id)===tr.dataset.id);if(!n)return;closeOvw();cam.x=n.x;cam.y=n.y;selectNest(n)});
+$('ovLegs').addEventListener('pointerdown',e=>{const tr=e.target.closest('tr[data-n]');if(!tr||!player)return;const L=player.legions.find(l=>l.num==tr.dataset.n);if(!L)return;closeOvw();cam.x=L.cx;cam.y=L.cy;selectLegion(L,false,e.shiftKey)});
+function ovwTick(c){
+  const types=[0,3,1,2,4,5].filter(t=>unlocked(c,t)||c.cnt[t]);
+  const num=v=>v?v:`<span class="z">0</span>`;
+  const head=types.map(t=>`<th title="${UNIT[t].pl}"><span style="color:${UNIT[t].col}">●</span> ${UNIT[t].pl}</th>`).join('');
+  const stTxt=n=>{const st=n.eggState,q=n.queue.reduce((s,x)=>s+x.n,0);
+    return st==='popA'?'<span class="warn">Armee voll</span>':st==='popW'?'<span class="warn">Sammler voll</span>':st==='food'?'<span class="warn">kein Futter</span>':st==='idle'?'pausiert':q?`${UNIT[n.queue[0].t].name} · ${q} in Schlange`:'Sammlerinnen'};
+  const tot=[0,0,0,0,0,0];let tg=0,tf=0,tc=0;
+  const rows=c.nests.map(n=>{for(const t of types)tot[t]+=n.cnt[t];tg+=n.gar;tf+=n.food;tc+=n.cap;const hf=n.hp/n.maxHp,hit=time-n.lastHit<4;
+    return `<tr class="cl${hit?' hit':''}" data-id="${n.id}"><td>${nestName(n)}${hit?' ⚠':''}</td><td>${n.level}</td><td><span class="hb${hf<.4?' low':''}"><i style="width:${(hf*100).toFixed(0)}%"></i></span>${Math.ceil(n.hp)}</td><td>${fmt(n.food)} / ${fmt(n.cap)}</td>${types.map(t=>`<td>${num(n.cnt[t])}</td>`).join('')}<td><b>${n.gar}</b></td><td class="l">${stTxt(n)}</td></tr>`}).join('');
+  const setH=(id,h)=>{const el=$(id);if(el._h!==h){el._h=h;el.innerHTML=h}};
+  setH('ovNests',`<tr><th>Bau</th><th>Stufe</th><th>Leben</th><th>Futter</th>${head}<th>Garnison</th><th style="text-align:left">Brut</th></tr>`+rows+
+    (c.nests.length>1?`<tr class="tot"><td>Gesamt</td><td></td><td></td><td>${fmt(tf)} / ${fmt(tc)}</td>${types.map(t=>`<td>${tot[t]}</td>`).join('')}<td>${tg}</td><td></td></tr>`:''));
+  const ft=[1,2,4,5].filter(t=>unlocked(c,t)||c.cnt[t]);
+  setH('ovLegs',c.legions.length?`<tr><th>Legion</th><th>Größe</th>${ft.map(t=>`<th><span style="color:${UNIT[t].col}">●</span> ${UNIT[t].pl}</th>`).join('')}<th style="text-align:left">Auftrag</th></tr>`+
+    c.legions.map(L=>`<tr class="cl" data-n="${L.num}"><td>Legion ${ROM[L.num]}</td><td><b>${L.size}</b></td>${ft.map(t=>`<td>${num(L.mix?L.mix[t]:0)}</td>`).join('')}<td class="l">${L.target?'Angriff: '+esc(L.target.kind==='mob'?MOBS[L.target.type].name:L.target.col.name):L.defend?'Verteidigung':L.disband?'Heimweg':'Marsch'}</td></tr>`).join('')
+    :'<tr><td class="l">Keine Legion unterwegs. Mit R stellst du eine zusammen.</td></tr>');
+  const inLeg=c.legions.reduce((s,L)=>s+L.size,0);
+  setH('ovSum',`<span>Sammler-Plätze <b>${c.popW} / ${c.capW}</b></span><span>Armee-Plätze <b>${c.popA} / ${c.capA}</b></span><span>Kämpferinnen in Garnison <b>${tg}</b></span><span>in Legionen <b>${inLeg}</b></span><span>Futter gesamt <b>${fmt(c.bank)}</b></span>`);
+}
 function doRaise(){if(!player)return;$('raise').hidden?openRaise():closeRaise()}
 function doRaiseAll(){if(!player)return;const L=raiseLegion(player,1);if(L){selectLegion(L);toast(`Legion ${ROM[L.num]} ausgehoben: ${L.size} Kämpferinnen`,'good')}
   else tip(player.legions.length>=5?'Maximal 5 Legionen':'Keine Kämpferinnen in der Garnison. Bilde im Bau unter „Ausbildung“ Kriegerinnen aus')}
@@ -1745,7 +1800,7 @@ function startGame(){
   patches[0]={x:p.x+rnd(-140,140),y:p.y+rnd(-140,140),r:220,life:70};
   const a2=rnd(TAU);patches[1]={x:clamp(p.x+Math.cos(a2)*650,300,WORLD-300),y:clamp(p.y+Math.sin(a2)*650,300,WORLD-300),r:240,life:160};
   for(let i=0;i<40;i++){const a=rnd(TAU),d=rnd(60,260);addFood(p.x+Math.cos(a)*d,p.y+Math.sin(a)*d,i%7===0?4:i%3===0?2:0)}
-  cam.x=p.x;cam.y=p.y;cam.z=1.1;run.start=time;run.peak=0;run.ms={};run.alertT=-99;clearSel();closePanel();closeEvo();closeLogi();closeRaise();endMode();legSig='~';lgSig='';payOptSig='';
+  cam.x=p.x;cam.y=p.y;cam.z=1.1;run.start=time;run.peak=0;run.ms={};run.alertT=-99;clearSel();closePanel();closeEvo();closeLogi();closeRaise();closeOvw();endMode();legSig='~';lgSig='';payOptSig='';
   state='play';$('start').hidden=true;$('over').hidden=true;for(const id of HUDIDS)$(id).hidden=false;resize();
   toast('Dein Volk ist gegründet!','good');hudTick();lbTick();
 }
@@ -1753,7 +1808,7 @@ function gameOver(killer){
   state='over';const c=player;
   const score=Math.max(run.peak,c.strength);const earned=Math.floor(score/50)+c.nestKills*4+Math.floor(c.kills/25);
   meta.amber+=earned;meta.games++;const rec=score>meta.best;if(rec)meta.best=score;store.set(MKEY,meta);
-  const secs=Math.floor(time-run.start);clearSel();closePanel();closeEvo();closeLogi();closeRaise();endMode();
+  const secs=Math.floor(time-run.start);clearSel();closePanel();closeEvo();closeLogi();closeRaise();closeOvw();endMode();
   setTimeout(()=>{
     $('overSub').textContent=(killer?`Dein letzter Bau wurde von ${killer.name} zerstört.`:'Deine Kolonie ist untergegangen.')+(rec?' Neuer Rekord!':'');
     $('oScore').textContent=fmt(score);$('oFood').textContent=fmt(c.totalFood);$('oTime').textContent=`${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
@@ -1806,9 +1861,10 @@ addEventListener('keydown',e=>{
   if(tg.type==='range'&&e.code.startsWith('Arrow'))return;
   keys[e.code]=true;if(state!=='play'||!player)return;
   if(e.code==='Space'){e.preventDefault();const t=sel.legion?{x:sel.legion.cx,y:sel.legion.cy}:(sel.nest||player.nests[0]||player.travelers[0]);if(t){cam.x=t.x;cam.y=t.y}return}
-  if(e.code==='Escape'){if(mode)endMode();else if(!$('raise').hidden)closeRaise();else if(!$('evo').hidden)closeEvo();else if(!$('logi').hidden)closeLogi();else if(sel.nest)closePanel();else{clearSel();hudTick()}return}
+  if(e.code==='Escape'){if(mode)endMode();else if(!$('raise').hidden)closeRaise();else if(!$('ovw').hidden)closeOvw();else if(!$('evo').hidden)closeEvo();else if(!$('logi').hidden)closeLogi();else if(sel.nest)closePanel();else{clearSel();hudTick()}return}
   if(e.code==='KeyE'){$('evo').hidden?openEvo():closeEvo();return}
   if(e.code==='KeyL'){$('logi').hidden?openLogi():closeLogi();return}
+  if(e.code==='KeyO'){$('ovw').hidden?openOvw():closeOvw();return}
   if(e.code==='KeyR'){e.shiftKey?doRaiseAll():doRaise();return}
   if(e.code==='KeyQ'){selectAll();return}
   if(e.code==='KeyH'&&sel.legion){homeSel(false);return}
