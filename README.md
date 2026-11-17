@@ -45,11 +45,23 @@ Jede Art hat ihren eigenen **Fähigkeitsbaum**. Kämpferinnen bekommen zusätzli
 Etwa alle 30–50 Sekunden passiert etwas in der Welt:
 
 - **Gut:** Riesenkäfer (900 Futter als Beute), Regenwürmer, heruntergefallenes Eis, Picknick-Krümel
-- **Schlecht:** Jagdspinne, Ameisenlöwe, Riesenschuh, Regenschauer
+- **Schlecht:** Jagdspinne, Ameisenlöwe, Riesenschuh, Regenschauer, Marienkäfer (fressen Blattläuse)
+
+### Blattlaus-Weiden
+
+Im Bau-Menü legst du bis zu zwei Weiden pro Bau an (max. 900 vom Bau entfernt, 150 Futter). Die Läuse vermehren sich langsam und liefern dauerhaft Honigtau, der sich in der Weide sammelt (max. 500), bis deine Sammlerinnen ihn abholen. Weiden lassen sich bis Stufe 3 ausbauen.
+
+Das Risiko: Wer eine Weide überfällt, bekommt den gelagerten Honigtau. Zerstört eine Legion die Weide, stiehlt sie außerdem die Hälfte der Läuse. Marienkäfer-Schwärme fressen Läuse, wenn keine Kämpferinnen in der Nähe sind.
+
+### Königinnen-Raub
+
+Zerstört eine Legion einen fremden Bau, nimmt sie die Königin gefangen. Bringt sie sie lebend in einen eigenen Bau, gibt es Ameisen, Futter, gestohlene Fähigkeiten und Bernstein, gegen die Nummer 1 der Bestenliste doppelt. Die Gefangene ist langsam, und alle in der Nähe versuchen, sie zu befreien.
 
 ### Weitere Systeme
 
-- **Nebel des Krieges:** Du siehst nur, was deine Ameisen sehen.
+- **Nebel des Krieges:** Du siehst nur, was deine Ameisen sehen. Auch die Bots kennen nur, was sie erkundet haben.
+- **Legionen zusammenstellen:** Du bestimmst, wie viele Kämpferinnen jeder Art mitgehen, und steuerst mehrere Legionen gleichzeitig.
+- **Reichsübersicht:** Alle Baue mit Truppen, Futter und Weiden auf einen Blick.
 - **Ausbildungs-Warteschlange:** Einheiten gezielt in Auftrag geben. Ist die Schlange leer, schlüpfen automatisch Sammlerinnen.
 - **Bernstein und Skins:** Nach jeder Runde und täglich gibt es Bernstein für dauerhafte Startboni und Ameisen- oder Bau-Skins. Er wird im Browser gespeichert.
 
@@ -62,8 +74,11 @@ Etwa alle 30–50 Sekunden passiert etwas in der Welt:
 | Klick auf eigenen Bau | Bau-Menü |
 | E | Evolution |
 | L | Logistik |
-| R | Legion aus der Garnison ausheben |
+| O | Reichsübersicht |
+| R | Legion zusammenstellen (Shift + R: alle Kämpferinnen) |
 | 1–5 | Legion wählen, dann auf die Karte klicken (fremder Bau = Überfall) |
+| Shift + 1–5 / Shift + Klick | Mehrere Legionen wählen |
+| Q | Alle Legionen wählen |
 | H / X | Legion heim schicken / auflösen |
 | B | Nächsten eigenen Bau öffnen |
 | Leertaste | Kamera auf Legion oder Bau zentrieren |

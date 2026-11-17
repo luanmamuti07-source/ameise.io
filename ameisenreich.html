@@ -338,6 +338,10 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
   <h3 class="sec">Sammelgebiete</h3>
   <div class="btnrow"><button class="btn" id="zoneBtn" type="button">Gebiet markieren</button><button class="btn red" id="zoneClr" type="button">Alle löschen</button></div>
   <p class="note" id="zoneNote">Sammlerinnen arbeiten im Revier und in bis zu 3 markierten Gebieten. Ist ein Gebiet leer, wechseln sie ins nächste.</p>
+  <h3 class="sec">Blattlaus-Weiden</h3>
+  <div class="train" id="farmList"></div>
+  <div class="btnrow" style="margin-top:6px"><button class="btn" id="farmBtn" type="button">Weide anlegen · 150</button></div>
+  <p class="note" id="farmNote">Blattläuse liefern dauerhaft Honigtau. Er sammelt sich in der Weide (max. 500), bis deine Sammlerinnen ihn holen. Volle Weiden locken Räuber an!</p>
   <h3 class="sec">Volk dieses Baus</h3>
   <div class="people" id="peopleList"></div>
   <button class="btn" id="npLogi" type="button" style="margin-top:8px;width:100%">Ameisen und Futter verschieben <kbd>L</kbd></button>
@@ -423,6 +427,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
       <kbd>R</kbd><span>Legion zusammenstellen: du wählst, wie viele Kriegerinnen, Spuckerinnen usw. mitgehen. Shift + R nimmt alle.</span>
       <kbd>Shift</kbd><span>Shift + 1–5 oder Shift + Klick wählt mehrere Legionen, Q wählt alle. Sie marschieren zusammen.</span>
       <kbd>1–5</kbd><span>Legion wählen, dann auf die Karte klicken. Fremder Bau = Überfall.</span>
+      <kbd>Weiden</kbd><span>Im Bau-Menü legst du Blattlaus-Weiden an. Sie liefern dauerhaft Honigtau, den deine Sammlerinnen abholen. Überfällt dich jemand, bekommt er den gelagerten Honigtau, und eine Legion stiehlt die halben Läuse.</span>
       <kbd>Raub</kbd><span>Zerstört deine Legion einen Bau, nimmt sie die Königin gefangen. Bringst du sie lebend heim, bekommst du Ameisen, Futter und Fähigkeiten, gegen die Nummer 1 doppelt. Aber alle wollen sie befreien!</span>
     </div>
     <div class="meta">
@@ -633,7 +638,7 @@ function makeColony(name,color,isPlayer){
   const [cr,cg,cb]=hexRgb(color);
   const c={id:uid++,name,color,dark:shade(color,.42),mid:shade(color,.72),ghost:`rgb(${cr+(255-cr)*.6|0},${cg+(255-cg)*.6|0},${cb+(255-cb)*.6|0})`,skinA:'std',skinN:'erde',isPlayer,alive:true,bank:0,storeCap:150,popCap:20,capW:14,capA:6,popW:0,popA:0,
     totalFood:0,kills:0,nestKills:0,pop:0,born:time,doc:{},seenTrees:null,cnt:[0,0,0,0,0,0],idleW:0,strength:0,shield:0,nestSeq:0,
-    nests:[],travelers:[],legions:[],carriers:[],sk,ai:{t:rnd(1),raidCd:rnd(50,120),aggr:rnd(.3,1),zt:0},vis:[],fog:isPlayer?null:new Uint8Array(FW*FW)};
+    nests:[],travelers:[],legions:[],carriers:[],farms:[],sk,ai:{t:rnd(1),raidCd:rnd(50,120),aggr:rnd(.3,1),zt:0},vis:[],fog:isPlayer?null:new Uint8Array(FW*FW)};
   colonies.push(c);return c;
 }
 function makeNest(c,x,y,level,plan){
@@ -758,7 +763,7 @@ function updateBotFog(){
     for(let y=Math.max(0,gy-1);y<=Math.min(FW-1,gy+1);y++)for(let x=Math.max(0,gx-1);x<=Math.min(FW-1,gx+1);x++)g[x+y*FW]=1}}
 const knows=(c,x,y)=>!c.fog||c.fog[fIdx(x,y)]===1;
 let fogT=0;
-function release(a){if(a.food){a.food.claim=Math.max(0,a.food.claim-1);a.food=null}}
+function release(a){if(a.food){a.food.claim=Math.max(0,a.food.claim-1);a.food=null}if(a.farm){a.farm.coll=Math.max(0,a.farm.coll-1);a.farm=null}}
 const nearestOwnNest=(c,x,y)=>{let b=null,bd=Infinity;for(const n of c.nests){const d=(n.x-x)**2+(n.y-y)**2;if(d<bd){bd=d;b=n}}return b};
 
 /* ---------- purchases ---------- */
@@ -840,7 +845,9 @@ function hitStruct(s,d,attCol){
   if(s.kind==='mob'){if(s.hp<=0)mobDie(s,attCol);return}
   if(s.kind==='nest'){const steal=Math.min(s.food,d*.3);s.food-=steal;const got=nestAdd(nearestOwnNest(attCol,s.x,s.y),steal);if(attCol.isPlayer)s.fl+=got;
     if(s.col.isPlayer&&time-run.alertT>8){run.alertT=time;toast(`Bau ${ROM[s.num%7]} wird überfallen!`,'bad');marks.push({x:s.x,y:s.y,t:time,c:'#ef5a3c',r:s.r+30,ping:1})}}
-  else if(s.col.isPlayer&&time-run.alertT>6){run.alertT=time;toast('Deine junge Königin wird angegriffen!','bad')}
+  else if(s.kind==='farm'){const st=Math.min(s.honey,d*1.2);s.honey-=st;if(attCol&&attCol!==GAIA){const got=nestAdd(nearestOwnNest(attCol,s.x,s.y),st);if(attCol.isPlayer){s.fl+=got;s.flT-=1/60;if(s.flT<=0&&s.fl>=1){floats.push({x:s.x,y:s.y-s.r-10,t:'+'+Math.round(s.fl),l:1.1,c:'#ffd27a'});s.fl=0;s.flT=.7}}}
+    if(s.col.isPlayer&&time-run.alertT>8){run.alertT=time;toast('Eine Blattlaus-Weide wird überfallen!','bad');marks.push({x:s.x,y:s.y,t:time,c:'#ef5a3c',r:50,ping:1})}}
+  else if(s.kind==='queen'&&s.col.isPlayer&&time-run.alertT>6){run.alertT=time;toast('Deine junge Königin wird angegriffen!','bad')}
   if(s.hp<=0)destroyStruct(s,attCol);
 }
 function hitAnt(b,d,att,attCol){breakShield(att?att.col:attCol);
@@ -863,6 +870,7 @@ function destroyStruct(s,attCol){
   s.alive=false;const c=s.col;
   for(let i=0;i<30;i++)parts.push({x:s.x,y:s.y,vx:rnd(-170,170),vy:rnd(-170,170),l:rnd(.5,1.2),c:i%2?c.color:'#8a6a48',s:rnd(1.5,4)});
   if(s.kind==='captive'){freeCaptive(s,attCol);return}
+  if(s.kind==='farm'){destroyFarm(s,attCol);return}
   if(s.kind==='nest'){
     c.nests=c.nests.filter(n=>n!==s);
     if(attCol&&attCol!==GAIA)tryCapture(s,attCol);
@@ -928,10 +936,49 @@ function freeCaptive(q,killer){
     feed(`Die Königin von <b>${esc(q.vname)}</b> ist tot`)}
   if(q.col.isPlayer)toast('Die gefangene Königin ist verloren!','bad');
 }
+/* ---------- aphid farms ---------- */
+const FARM_COST=150,FARM_UP=[0,0,220,400],FARM_APH=[0,24,48,80],FARM_CAP=500,FARM_MAX=2,FARM_D=900;
+function farmProblem(c,n,x,y){
+  if(x<60||y<60||x>WORLD-60||y>WORLD-60)return 'Zu nah am Rand';
+  const d=Math.hypot(n.x-x,n.y-y);if(d>FARM_D)return `Zu weit vom Bau (max. ${FARM_D})`;if(d<n.r+70)return 'Zu nah am Bau';
+  if(c.farms.filter(f=>f.nest===n).length>=FARM_MAX)return `Maximal ${FARM_MAX} Weiden pro Bau`;
+  for(const s of structs)if(s.alive&&s.kind!=='mob'&&Math.hypot(s.x-x,s.y-y)<s.r+80)return 'Zu nah an etwas anderem';
+  return null}
+function makeFarm(c,n,x,y,aph){
+  const f={kind:'farm',id:uid++,col:c,nest:n,x,y,r:20,level:1,aph:aph||5,honey:0,hp:400,maxHp:400,alive:true,hurt:0,lastHit:-99,coll:0,seed:rnd(1000),fl:0,flT:0};
+  c.farms.push(f);structs.push(f);return f}
+function tryFarm(c,n,x,y){if(farmProblem(c,n,x,y)||n.food<FARM_COST)return null;n.food-=FARM_COST;return makeFarm(c,n,x,y)}
+function upFarm(c,f){if(!f.alive||f.level>=3)return false;const cost=FARM_UP[f.level+1],n=f.nest;if(!n||!n.alive||n.food<cost)return false;
+  n.food-=cost;f.level++;const r=f.hp/f.maxHp;f.maxHp=260+140*f.level;f.hp=f.maxHp*r;return true}
+const farmRate=f=>f.aph*.05;
+function updateFarm(f,dt){
+  const c=f.col;f.hurt-=dt;
+  if(!f.nest||!f.nest.alive){const n=nearestOwnNest(c,f.x,f.y);if(n)f.nest=n;else{f.alive=false;c.farms=c.farms.filter(x=>x!==f);return}}
+  const mx=FARM_APH[f.level];f.aph=Math.min(mx,f.aph+dt*.016*Math.max(f.aph,5)*(1-f.aph/mx)*(rainEnd>time?.5:1));
+  if(f.honey<FARM_CAP)f.honey=Math.min(FARM_CAP,f.honey+farmRate(f)*dt);
+  if(time-f.lastHit>6)f.hp=Math.min(f.maxHp,f.hp+f.maxHp*.01*dt);
+}
+/* stolen aphids: top up a farm of that nest, or found a new one nearby for free */
+function placeAphids(c,n,aph){
+  if(!n||aph<1)return null;
+  const own=c.farms.filter(f=>f.nest===n).sort((a,b)=>(a.aph-FARM_APH[a.level])-(b.aph-FARM_APH[b.level]));
+  if(own.length<FARM_MAX)for(let i=0;i<30;i++){const a=rnd(TAU),d=rnd(n.r+120,600),x=n.x+Math.cos(a)*d,y=n.y+Math.sin(a)*d;if(!farmProblem(c,n,x,y))return makeFarm(c,n,x,y,Math.min(aph,FARM_APH[1]))}
+  const f=own[0]||c.farms[0];if(f){f.aph=Math.min(FARM_APH[f.level],f.aph+aph);return f}return null}
+function destroyFarm(s,attCol){
+  const c=s.col;c.farms=c.farms.filter(f=>f!==s);const honey=Math.round(s.honey);s.honey=0;
+  if(attCol&&attCol!==GAIA){
+    const h=nearestOwnNest(attCol,s.x,s.y);let got=0;if(h){got+=nestAdd(h,honey);for(const n of attCol.nests)if(got<honey)got+=nestAdd(n,honey-got)}
+    const L=attCol.legions.find(L=>L.size>=3&&Math.hypot(L.cx-s.x,L.cy-s.y)<s.r+260);let st=0;
+    if(L&&s.aph>=4){st=Math.floor(s.aph/2);placeAphids(attCol,h,st)}
+    if(attCol.isPlayer){toast(`Weide von ${c.name} geplündert! +${Math.round(got)} Futter`,'good');if(st)tip(`Deine Legion hat ${st} Blattläuse gestohlen. Sie grasen jetzt auf einer Weide bei Bau ${ROM[h.num%7]}`)}
+    feed(`<b>${esc(attCol.name)}</b> plündert eine Weide von <b>${esc(c.name)}</b>`);
+  }else feed(`Eine Weide von <b>${esc(c.name)}</b> ist zerstört`);
+  if(c.isPlayer)toast('Eine deiner Blattlaus-Weiden ist verloren!','bad');
+}
 function eliminate(c,killer){
   if(!c.alive)return;c.alive=false;
   for(const a of ants)if(a.col===c&&a.alive){a.alive=false;release(a);if(Math.random()<.5)addFood(a.x,a.y,6,1)}
-  for(const s of c.travelers)s.alive=false;c.legions=[];
+  for(const s of c.travelers)s.alive=false;for(const f of c.farms)f.alive=false;c.farms=[];c.legions=[];
   feed(killer?`<b>${esc(killer.name)}</b> hat <b>${esc(c.name)}</b> ausgelöscht`:`<b>${esc(c.name)}</b> ist untergegangen`);
   if(killer&&killer.isPlayer)toast(`${c.name} ausgelöscht!`,'good');
   if(c.isPlayer)gameOver(killer);
@@ -939,11 +986,12 @@ function eliminate(c,killer){
 function shoot(x,y,t,dmg,att,attCol,col,smul){projs.push({x,y,t,dmg,att,attCol,col,l:1.2,smul:smul||1})}
 
 /* ---------- world events ---------- */
-const GAIA={name:'Die Natur',color:'#9a8f7a',isPlayer:false,shield:0,nests:[],travelers:[],legions:[],sk:{},doc:{},alive:true,kills:0,nestKills:0,born:-1e9};
+const GAIA={name:'Die Natur',color:'#9a8f7a',isPlayer:false,shield:0,nests:[],travelers:[],legions:[],farms:[],sk:{},doc:{},alive:true,kills:0,nestKills:0,born:-1e9};
 const MOBS={
   beetle:{name:'Riesenkäfer',hp:2600,r:28,spd:30,dmg:30,rate:.9,life:260,loot:900,col:'#ffd27a'},
   worm:{name:'Regenwurm',hp:600,r:12,spd:0,dmg:0,life:60,loot:320,col:'#e48a9a'},
   spider:{name:'Jagdspinne',hp:750,r:16,spd:100,dmg:24,rate:.45,life:110,loot:320,col:'#ef5a3c'},
+  ladybug:{name:'Marienkäfer',hp:380,r:15,spd:60,dmg:10,rate:.8,life:130,loot:160,col:'#ef5a3c'},
   antlion:{name:'Ameisenlöwe',hp:1100,r:20,spd:0,dmg:40,rate:0,life:140,loot:450,pit:75,col:'#ef5a3c'},
 };
 let rainEnd=-1,stomps=[],evTimer=40;const events=[];
@@ -962,11 +1010,13 @@ function updateMob(m,dt){
   if(time>m.end){m.alive=false;if(m.type!=='worm')feed(`${D.name} zieht weiter`);return}
   if(m.type==='worm'){m.step+=dt*2;return}
   if(m.type==='antlion'){m.step+=dt;eachEnemyAnt(m.x,m.y,GAIA,D.pit,b=>{const dx=m.x-b.x,dy=m.y-b.y,d=Math.hypot(dx,dy)||1;b.x+=dx/d*30*dt;b.y+=dy/d*30*dt;if(d<20)hitAnt(b,D.dmg*dt,null,GAIA)});return}
+  if(m.type==='ladybug'&&m.farm&&m.farm.alive&&time-m.lastHit>=4){const f=m.farm;m.tx=f.x;m.ty=f.y;
+    if(Math.hypot(f.x-m.x,f.y-m.y)<f.r+m.r+6){m.step+=dt*2;let guard=false;eachEnemyAnt(f.x,f.y,GAIA,150,b=>{if(b.col===f.col&&isFighter(b.type))guard=true});if(!guard)f.aph=Math.max(2,f.aph-.2*dt);if(f.aph>3)return;m.farm=null}}
   m.atkT-=dt;let tgt=null;
   if(m.type==='spider'||time-m.lastHit<4)tgt=nearestEnemyAnt(m.x,m.y,GAIA,m.type==='spider'?320:200);
   let tx=m.tx,ty=m.ty;
   if(tgt){tx=tgt.x;ty=tgt.y}
-  else{m.wt-=dt;if(m.wt<=0||Math.hypot(m.tx-m.x,m.ty-m.y)<20){m.wt=rnd(5,10);const a=rnd(TAU),d=rnd(150,450);m.tx=clamp(m.ox+Math.cos(a)*d,100,WORLD-100);m.ty=clamp(m.oy+Math.sin(a)*d,100,WORLD-100)}}
+  else if(!(m.type==='ladybug'&&m.farm&&m.farm.alive)){m.wt-=dt;if(m.wt<=0||Math.hypot(m.tx-m.x,m.ty-m.y)<20){m.wt=rnd(5,10);const a=rnd(TAU),d=rnd(150,450);m.tx=clamp(m.ox+Math.cos(a)*d,100,WORLD-100);m.ty=clamp(m.oy+Math.sin(a)*d,100,WORLD-100)}}
   const dx=tx-m.x,dy=ty-m.y,d=Math.hypot(dx,dy);
   if(d>m.r*.5){const ta=Math.atan2(dy,dx);let da=ta-m.a;da=Math.atan2(Math.sin(da),Math.cos(da));m.a+=da*Math.min(1,dt*4);
     const sp=D.spd*(tgt&&m.type==='beetle'?1.7:1)*(rainEnd>time?.8:1);m.x=clamp(m.x+Math.cos(m.a)*sp*dt,40,WORLD-40);m.y=clamp(m.y+Math.sin(m.a)*sp*dt,40,WORLD-40);m.step+=sp*dt*.12}
@@ -988,6 +1038,10 @@ const EVENTS=[
   {id:'rain',w:2,run:()=>{rainEnd=time+45;for(let i=0;i<5;i++){const q=eventSpot(Math.random()<.5);makeMob('worm',q.x,q.y)}
     return{name:'Regenschauer',text:'Regen! Alle Ameisen sind langsamer, dafür kommen überall Würmer hoch',col:'#7fb8e8',end:rainEnd,global:1}}},
   {id:'spider',w:2,run:p=>({name:'Jagdspinne',text:'Eine Jagdspinne jagt Ameisen! Schützt eure Sammlerinnen',obj:makeMob('spider',p.x,p.y),col:'#ef5a3c'})},
+  {id:'ladybug',w:2,run:(p,near)=>{const all=structs.filter(s=>s.kind==='farm'&&s.alive&&s.aph>=10),own=near&&player&&player.alive?all.filter(f=>f.col===player):[];
+    const f=own.length?own[rnd(own.length)|0]:all[rnd(all.length)|0];let m;
+    for(let i=0;i<3;i++){const a=rnd(TAU);m=makeMob('ladybug',f.x+Math.cos(a)*rnd(280,380),f.y+Math.sin(a)*rnd(280,380));m.farm=f}
+    return{name:'Marienkäfer',text:'Marienkäfer fallen über eine Blattlaus-Weide her! Kämpferinnen in der Nähe verscheuchen sie',obj:m,x:f.x,y:f.y,col:'#ef5a3c'}}},
   {id:'antlion',w:2,run:p=>({name:'Ameisenlöwe',text:'Ein Ameisenlöwe hat einen Trichter gegraben. Meidet ihn oder erlegt ihn',obj:makeMob('antlion',p.x,p.y),col:'#ef5a3c'})},
   {id:'stomp',w:2,run:(p,near)=>{let x=p.x,y=p.y;const ns=structs.filter(s=>s.kind==='nest'&&s.col.shield<=time);
     if(ns.length&&Math.random()<.6){const own=near&&player&&player.alive?player.nests.filter(n=>player.shield<=time):[];const n=own.length?own[rnd(own.length)|0]:ns[rnd(ns.length)|0];x=n.x+rnd(-110,110);y=n.y+rnd(-110,110)}
@@ -997,6 +1051,7 @@ function runEvent(force){
   const near=Math.random()<.55,p=eventSpot(near);let E=force?EVENTS.find(e=>e.id===force):null;
   if(!E){let r=rnd(EVENTS.reduce((s,e)=>s+e.w,0));for(const e of EVENTS){r-=e.w;if(r<=0){E=e;break}}E=E||EVENTS[0]}
   if(E.id==='rain'&&rainEnd>time)E=EVENTS[1];
+  if(E.id==='ladybug'&&!structs.some(s=>s.kind==='farm'&&s.alive&&s.aph>=10))E=EVENTS[1];
   const ev=E.run(p,near);ev.x=ev.x??(ev.obj?ev.obj.x:ev.food?ev.food.x:p.x);ev.y=ev.y??(ev.obj?ev.obj.y:ev.food?ev.food.y:p.y);ev.start=time;ev.id=E.id;ev.good=!!E.good;events.push(ev);
   const close=player&&player.alive&&(ev.global||player.nests.some(n=>Math.hypot(n.x-ev.x,n.y-ev.y)<1600));
   if(close){toast(ev.name+'!',E.good?'good':'bad');tip(ev.text)}
@@ -1006,7 +1061,7 @@ function updateEvents(dt){
   evTimer-=dt;if(evTimer<=0){evTimer=rnd(28,50);runEvent()}
   for(const s of stomps)if(!s.done&&time>=s.t){s.done=true;
     for(const a of ants)if(a.alive&&a.col.shield<=time&&Math.hypot(a.x-s.x,a.y-s.y)<s.r)killAnt(a,null,GAIA);
-    for(const st of structs)if(st.alive&&st.kind!=='mob'&&st.col.shield<=time&&Math.hypot(st.x-s.x,st.y-s.y)<s.r+st.r)hitStruct(st,st.kind==='nest'?st.maxHp*.35:999,GAIA);
+    for(const st of structs)if(st.alive&&st.kind!=='mob'&&st.col.shield<=time&&Math.hypot(st.x-s.x,st.y-s.y)<s.r+st.r)hitStruct(st,st.kind==='nest'||st.kind==='farm'?st.maxHp*.35:999,GAIA);
     for(let i=0;i<40;i++){const a=rnd(TAU);parts.push({x:s.x+Math.cos(a)*s.r*.8,y:s.y+Math.sin(a)*s.r*.8,vx:Math.cos(a)*rnd(60,200),vy:Math.sin(a)*rnd(60,200),l:rnd(.5,1),c:'#8a6a48',s:rnd(2,5)})}}
   stomps=stomps.filter(s=>time<s.t+1.2);
   for(const p of pools)eachEnemyAnt(p.x,p.y,p.col,p.r,b=>hitAnt(b,p.dps*dt,null,p.col));
@@ -1025,7 +1080,9 @@ function antThink(a){
       a.hand=null;if(c.carriers.length){const hr=190*(1+.4*c.sk.hand);let bd=hr*hr;for(const k of c.carriers)if(k.home===n){const d=(k.x-a.x)**2+(k.y-a.y)**2;if(d<bd){bd=d;a.hand=k}}}
       return}
     if(a.food&&!a.food.dead&&a.food.v>0)return;
+    if(a.farm&&a.farm.alive&&a.farm.honey>=3)return;
     release(a);if(n.food>=n.cap-1)return;
+    if(c.farms.length)for(const f of c.farms)if(f.nest===n&&f.honey>=12&&f.coll<Math.ceil(f.honey/30)&&Math.random()<.5){a.farm=f;f.coll++;a.scout=false;return}
     if(a.area>=n.zones.length)a.area=-1;
     const [ax,ay,R]=areaOf(a);
     const sense=125*(1+.2*c.sk.sense);
@@ -1069,6 +1126,8 @@ function updateAnt(a,dt){
       const k=a.hand;
       if(k&&k.alive&&!k.ret&&k.load<carrierCap(c)){moveTo(a,k.x,k.y,sp,dt);if(Math.hypot(k.x-a.x,k.y-a.y)<6+k.sz*3){k.load+=a.carry;k.lastRecv=time;a.carry=0;a.hand=null}return}
       moveTo(a,n.x,n.y,sp,dt);if(Math.hypot(n.x-a.x,n.y-a.y)<n.r*.55){const got=nestAdd(n,a.carry*(1+.25*c.sk.harvest));if(c.isPlayer&&got)n.fl+=got;a.carry=0}return}
+    if(a.farm){const f=a.farm;if(!f.alive||f.honey<1){release(a);a.think=0}
+      else{moveTo(a,f.x,f.y,sp,dt);if(Math.hypot(f.x-a.x,f.y-a.y)<f.r+4){const take=Math.min(f.honey,6+2*c.sk.carry);f.honey-=take;a.carry=take;release(a);a.think=0}return}}
     if(a.food&&!a.food.dead&&a.food.v>0){const f=a.food;moveTo(a,f.x,f.y,sp,dt);
       if(Math.hypot(f.x-a.x,f.y-a.y)<f.r+3){const take=Math.min((1+c.sk.carry)*(f.t===5?2:1),f.v);f.v-=take;a.carry=take;release(a);if(f.v<=0)f.dead=true;a.think=0}return}
     if(a.food)release(a);
@@ -1148,6 +1207,9 @@ function botSpend(c){
       const w={brood:3,store:(c.popW>=c.capW*.85||n.food>n.cap*.75)?6:1.2,quarters:c.popA>=c.capA*.85&&c.capA<c.capW*(.45+.4*ai.aggr)?1+ai.aggr:.25,barracks:1.4*ai.aggr,fungus:1.6,guard:time-n.lastHit<25?5:.8}[r.k];
       opts.push({w,pay:n,cost:roomCost(r,l),f:()=>tryRoom(c,n,r.k)})}
   }
+  for(const n of c.nests){const fs=c.farms.filter(f=>f.nest===n);
+    if(n.level>=2&&fs.length<FARM_MAX)opts.push({w:2.4,pay:n,cost:FARM_COST,f:()=>{for(let i=0;i<20;i++){const a=rnd(TAU),d=rnd(n.r+120,650),x=n.x+Math.cos(a)*d,y=n.y+Math.sin(a)*d;if(!farmProblem(c,n,x,y)){tryFarm(c,n,x,y);return}}}});
+    for(const f of fs)if(f.level<3&&f.aph>FARM_APH[f.level]*.7)opts.push({w:1.3,pay:n,cost:FARM_UP[f.level+1],f:()=>upFarm(c,f)})}
   const rich=richest(c);
   for(const k of SKKEYS){const nd=NODES[k],l=s[k];if(l>=nd.max||nodeLock(c,nd))continue;
     const w='ksgb'.includes(nd.tree.id)?.5+ai.aggr:nd.tree.id==='w'?1.2:.9;opts.push({w,pay:rich,cost:nodeCost(nd,l),f:()=>trySkill(c,k,rich)})}
@@ -1162,7 +1224,7 @@ function updateAI(c,dt){
   const ai=c.ai;ai.t-=dt;if(ai.t>0||!c.nests.length)return;ai.t=rnd(.8,1.2);ai.raidCd-=1;ai.zt-=1;
   if(ai.zt<=0){ai.zt=rnd(30,50);botZones(c)}
   const main=c.nests.reduce((b,n)=>n.level>b.level?n:b,c.nests[0]);
-  const threat=c.nests.find(n=>time-n.lastHit<4);
+  const threat=c.nests.find(n=>time-n.lastHit<4)||c.farms.find(f=>time-f.lastHit<4);
   const ag=ai.aggr+(threat?.4:0);
   {const want=c.popA<c.capA-1&&c.popA<c.popW*(.25+.35*ai.aggr+(threat?.2:0))&&Math.random()<.35+.5*ag?1:0,fShare=1-want;
    const ft=[1,1];if(unlocked(c,2))ft.push(2,2);if(unlocked(c,4))ft.push(4);if(unlocked(c,5))ft.push(5);
@@ -1190,7 +1252,7 @@ function updateAI(c,dt){
       const size=Math.floor(gar*.75);let best=null,bs=Infinity;
       for(const s of structs){if(!s.alive||s.col===c||s.col.shield>time||time-s.col.born<240||!knows(c,s.x,s.y))continue;const d=Math.hypot(s.x-main.x,s.y-main.y);if(d>1900)continue;
         const def=s.kind==='nest'?(s.gar*.8+s.level*2+s.rooms.guard*3):s.kind==='mob'?s.hp/60:2;if(def>size*1.15)continue;
-        const sc=d*(.5+def/size)*(s.col.isPlayer?1.15:s.kind==='mob'?.6:1);if(sc<bs){bs=sc;best=s}}
+        const sc=d*(.5+def/size)*(s.col.isPlayer?1.15:s.kind==='mob'?.6:1)*(s.kind==='farm'?Math.max(.3,1-s.honey/600):1);if(sc<bs){bs=sc;best=s}}
       if(best){const L=raiseLegion(c,.75,main);if(L){L.target=best;L.tx=best.x;L.ty=best.y}ai.raidCd=rnd(40,85)/(.5+ai.aggr)}else ai.raidCd=10;
     }
   }
@@ -1247,7 +1309,7 @@ function update(dt){
   botFogT-=dt;if(botFogT<=0){botFogT=1;updateBotFog()}
   for(const c of colonies){colCaps(c);if(!c.isPlayer)updateAI(c,dt)}
   updateEvents(dt);
-  for(const s of structs)if(s.alive){if(s.kind==='nest')updateNest(s,dt);else if(s.kind==='mob')updateMob(s,dt);else if(s.kind==='captive')updateCaptive(s,dt);else updateTraveler(s,dt)}
+  for(const s of structs)if(s.alive){if(s.kind==='nest')updateNest(s,dt);else if(s.kind==='mob')updateMob(s,dt);else if(s.kind==='captive')updateCaptive(s,dt);else if(s.kind==='farm')updateFarm(s,dt);else updateTraveler(s,dt)}
   for(const c of colonies)for(const L of c.legions)if(L.target){if(L.target.alive){L.tx=L.target.x;L.ty=L.target.y}else{L.target=null;if(c.isPlayer)toast(`Legion ${ROM[L.num]}: Ziel vernichtet`,'good')}}
   for(let i=0,n=ants.length;i<n;i++){const a=ants[i];if(a.alive)updateAnt(a,dt)}
   for(const p of projs){const t=p.t;if(!t.alive){p.l=0;continue}const dx=t.x-p.x,dy=t.y-p.y,d=Math.hypot(dx,dy),st=340*dt;
@@ -1271,7 +1333,7 @@ function update(dt){
     const before=c.legions.length;c.legions=c.legions.filter(L=>L.size>0);
     if(c.isPlayer&&sel.legion&&!c.legions.includes(sel.legion)){if(before>c.legions.length)toast(`Legion ${ROM[sel.legion.num]} ist aufgelöst`);sel.legion=null}
     let s=0;for(let t=0;t<6;t++)s+=c.cnt[t]*UNIT[t].str;
-    s+=c.nests.reduce((q,n)=>q+n.level*30+Object.values(n.rooms).reduce((a,b)=>a+b,0)*10,0);s+=SKKEYS.reduce((q,k)=>q+c.sk[k],0)*8;
+    s+=c.nests.reduce((q,n)=>q+n.level*30+Object.values(n.rooms).reduce((a,b)=>a+b,0)*10,0);s+=SKKEYS.reduce((q,k)=>q+c.sk[k],0)*8;s+=c.farms.reduce((q,f)=>q+f.level*15+f.aph*.5,0);
     c.strength=Math.round(s);
   }
   if(colonies.filter(c=>!c.isPlayer).length<BOTN){botT-=dt;if(botT<=0){spawnBot(false);botT=rnd(4,9)}}
@@ -1430,6 +1492,22 @@ function drawCaptive(q,z){
   label(c.isPlayer?'Gefangene Königin · bring sie heim!':q.vic.isPlayer?'Deine Königin · befreie sie!':`Gefangen: ${q.vname}`,q.x,q.y-r-14/z,Math.max(11/z,8),c.isPlayer?'#ffd27a':'#ff8a70');
   hpBar(q.x,q.y+r+6/z,r*2.4,Math.max(3/z,3),q.hp/q.maxHp);
 }
+function drawFarm(f,z){
+  const c=f.col,r=f.r,mine=c.isPlayer,vis=mine||seen(f.x,f.y);let sd=f.seed;const rr=()=>{sd=(sd*9301+49297)%233280;return sd/233280};
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(f.x+3,f.y+4,r*1.7,r*1.4,0,0,TAU);ctx.fill();
+  const leaves=3+f.level;
+  for(let i=0;i<leaves;i++){const a=i/leaves*TAU+rr()*.6,L=r*(1.1+rr()*.6);ctx.save();ctx.translate(f.x,f.y);ctx.rotate(a);
+    ctx.fillStyle=f.hurt>0?'#fff':i%2?'#4f7a2c':'#5d8c35';ctx.beginPath();ctx.ellipse(L*.55,0,L*.6,L*.26,0,0,TAU);ctx.fill();
+    ctx.strokeStyle='rgba(30,50,15,.6)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(L*1.1,0);ctx.stroke();ctx.restore()}
+  ctx.fillStyle='#3d5a22';ctx.beginPath();ctx.arc(f.x,f.y,r*.32,0,TAU);ctx.fill();
+  if(vis){const n=Math.min(36,Math.round(f.aph*.45));
+    for(let i=0;i<n;i++){const a=rr()*TAU,d=r*(.35+rr()*1.05),wob=Math.sin(time*2+i)*.6;ctx.fillStyle=i%5?'#c5ec8a':'#a6e05a';ctx.beginPath();ctx.ellipse(f.x+Math.cos(a)*d+wob,f.y+Math.sin(a)*d,1.7,1.2,a,0,TAU);ctx.fill()}
+    const drops=Math.ceil(f.honey/100);for(let i=0;i<drops;i++){const a=i/5*TAU+.4,d=r*1.45;ctx.fillStyle='#ffc94a';ctx.beginPath();ctx.arc(f.x+Math.cos(a)*d,f.y+Math.sin(a)*d,2.6,0,TAU);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.5)';ctx.beginPath();ctx.arc(f.x+Math.cos(a)*d-.8,f.y+Math.sin(a)*d-.8,.8,0,TAU);ctx.fill()}}
+  ctx.strokeStyle=c.color;ctx.globalAlpha=.55;ctx.lineWidth=1.5/z;ctx.setLineDash([4/z,4/z]);ctx.beginPath();ctx.arc(f.x,f.y,r*1.9,0,TAU);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
+  if(z>.45||mine){const fs=Math.max(10/z,8);label(mine?`Weide ${'★'.repeat(f.level)} · ${Math.floor(f.honey)}/${FARM_CAP}`:vis?`Weide · ${Math.floor(f.honey)} Honigtau`:'Weide',f.x,f.y-r*1.9-3/z,fs,mine?'#c5ec8a':'#f4e8d6')}
+  if(f.hp<f.maxHp)hpBar(f.x,f.y+r*1.9+3/z,r*2.4,Math.max(3/z,3),f.hp/f.maxHp);
+}
 function drawMob(m,z){
   const D=MOBS[m.type],r=m.r,hurt=m.hurt>0;
   if(m.type==='antlion'){const P=D.pit,g=ctx.createRadialGradient(m.x,m.y,3,m.x,m.y,P);g.addColorStop(0,'#1e1208');g.addColorStop(.45,'#7a5a34');g.addColorStop(1,'rgba(150,120,80,0)');
@@ -1443,6 +1521,17 @@ function drawMob(m,z){
     for(let i=0;i<n;i++){a+=Math.sin(m.step+i*.55)*.18;x+=Math.cos(a)*7;y+=Math.sin(a)*7;pts.push([x,y])}
     for(let i=pts.length-1;i>=0;i--){const k=1-i/18,[px,py]=pts[i];ctx.fillStyle=hurt?'#fff':i===4||i===5?'#c96a7c':'#e48a9a';ctx.beginPath();ctx.arc(px,py,r*.62*(.6+.4*k),0,TAU);ctx.fill()}
     ctx.strokeStyle='rgba(120,40,60,.4)';ctx.lineWidth=.8;for(const [px,py] of pts){ctx.beginPath();ctx.arc(px,py,r*.45,0,TAU);ctx.stroke()}}
+  else if(m.type==='ladybug'){
+    ctx.save();ctx.translate(m.x,m.y);ctx.rotate(m.a);
+    ctx.strokeStyle='#15141a';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.beginPath();
+    for(let k=-1;k<=1;k++)for(let sd=-1;sd<=1;sd+=2){const sw=Math.sin(m.step*5+k*2.1+(sd>0?Math.PI:0))*r*.15;ctx.moveTo(k*r*.35,sd*r*.5);ctx.lineTo(k*r*.45+sw,sd*r*1.05)}ctx.stroke();
+    ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(3,4,r,r*.85,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#15141a';ctx.beginPath();ctx.arc(r*.75,0,r*.42,0,TAU);ctx.fill();
+    ctx.fillStyle=hurt?'#fff':'#d8322b';ctx.beginPath();ctx.ellipse(0,0,r*.95,r*.82,0,0,TAU);ctx.fill();
+    ctx.strokeStyle='#15141a';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(-r*.95,0);ctx.lineTo(r*.6,0);ctx.stroke();
+    ctx.fillStyle='#15141a';for(const [dx,dy,rr] of [[.3,.38,.17],[.3,-.38,.17],[-.3,.45,.15],[-.3,-.45,.15],[-.62,.18,.12],[-.62,-.18,.12]]){ctx.beginPath();ctx.arc(dx*r,dy*r,rr*r,0,TAU);ctx.fill()}
+    ctx.fillStyle='#f4e8d6';for(const sd of [-1,1]){ctx.beginPath();ctx.arc(r*.86,sd*r*.2,r*.1,0,TAU);ctx.fill()}
+    ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.ellipse(r*.1,-r*.4,r*.35,r*.12,0,0,TAU);ctx.fill();ctx.restore()}
   else{
     ctx.save();ctx.translate(m.x,m.y);ctx.rotate(m.a);
     ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(4,5,r*1.3,r*.9,0,0,TAU);ctx.fill();
@@ -1506,6 +1595,9 @@ function render(){
     ctx.globalAlpha=s.col.isPlayer?.08:.05;ctx.fillStyle=s.col.color;ctx.beginPath();ctx.arc(s.x,s.y,s.R,0,TAU);ctx.fill();ctx.globalAlpha=1}
   if(player)for(const n of player.nests)drawZones(n,z);
   for(const f of foods){if(f.x<vx0-20||f.x>vx1+20||f.y<vy0-20||f.y>vy1+20||!seen(f.x,f.y))continue;drawFood(f,z)}
+  for(const s of structs)if(s.kind==='farm'&&s.x+60>vx0&&s.x-60<vx1&&s.y+60>vy0&&s.y-60<vy1&&(s.col.isPlayer||known(s.x,s.y)))drawFarm(s,z);
+  if(mode&&mode.kind==='farm'&&mode.nest.alive){const n=mode.nest;ctx.strokeStyle='rgba(197,236,138,.6)';ctx.lineWidth=2/z;ctx.setLineDash([8/z,8/z]);ctx.beginPath();ctx.arc(n.x,n.y,FARM_D,0,TAU);ctx.stroke();ctx.setLineDash([]);
+    const w=toWorld(mouse.x,mouse.y),bad=farmProblem(player,n,w.x,w.y);ctx.fillStyle=bad?'rgba(239,90,60,.25)':'rgba(156,207,98,.3)';ctx.beginPath();ctx.arc(w.x,w.y,38,0,TAU);ctx.fill()}
   for(const s of structs)if(s.kind==='nest'&&s.x+s.r*2>vx0&&s.x-s.r*2<vx1&&s.y+s.r*2>vy0&&s.y-s.r*2<vy1&&(s.col.isPlayer||known(s.x,s.y)))drawNest(s,z);
   const inV=(x,y,p)=>x+p>vx0&&x-p<vx1&&y+p>vy0&&y-p<vy1;
   for(const p of pools)if(inV(p.x,p.y,p.r)){const k=Math.min(1,(p.end-time)/1.5);ctx.globalAlpha=.35*k;ctx.fillStyle='#8fd14a';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,TAU);ctx.fill();
@@ -1549,7 +1641,8 @@ function renderMini(){
   for(const e of events){const p=.5+.5*Math.sin(time*5);mctx.strokeStyle=e.col;mctx.lineWidth=1.5*DPR;mctx.globalAlpha=.5+p*.5;
     const ex=(e.obj&&e.obj.alive?e.obj.x:e.x)*s,ey=(e.obj&&e.obj.alive?e.obj.y:e.y)*s;mctx.beginPath();mctx.moveTo(ex,ey-5*DPR);mctx.lineTo(ex+5*DPR,ey);mctx.lineTo(ex,ey+5*DPR);mctx.lineTo(ex-5*DPR,ey);mctx.closePath();mctx.stroke()}
   mctx.globalAlpha=1;
-  for(const st of structs){if(!st.col.isPlayer&&!(st.vic&&st.vic.isPlayer)&&!(st.kind==='nest'?known(st.x,st.y):seen(st.x,st.y)))continue;
+  for(const st of structs){if(!st.col.isPlayer&&!(st.vic&&st.vic.isPlayer)&&!(st.kind==='nest'||st.kind==='farm'?known(st.x,st.y):seen(st.x,st.y)))continue;
+    if(st.kind==='farm'){mctx.fillStyle='#9ccf62';mctx.fillRect(st.x*s-1.3*DPR,st.y*s-1.3*DPR,2.6*DPR,2.6*DPR);continue}
     if(st.kind==='captive'){mctx.strokeStyle=st.col.isPlayer?'#ffd27a':'#ef5a3c';mctx.lineWidth=1.5*DPR;mctx.beginPath();mctx.arc(st.x*s,st.y*s,(3+Math.sin(time*5))*DPR,0,TAU);mctx.stroke();continue}if(st.kind==='mob'){mctx.fillStyle=MOBS[st.type].col;mctx.beginPath();mctx.arc(st.x*s,st.y*s,2*DPR,0,TAU);mctx.fill();continue}
     mctx.fillStyle=st.col.color;const r=st.kind==='nest'?(2+st.level*.6)*DPR:1.6*DPR;
     if(st.kind==='nest')mctx.fillRect(st.x*s-r,st.y*s-r,r*2,r*2);else{mctx.beginPath();mctx.arc(st.x*s,st.y*s,r,0,TAU);mctx.fill()}
@@ -1666,11 +1759,15 @@ function openEvo(){closeLogi();closeRaise();closeOvw();payOptSig='';$('evo').hid
 $('evoPay').addEventListener('change',()=>hudTick());function closeEvo(){$('evo').hidden=true}
 $('evoBtn').addEventListener('click',()=>{$('evo').hidden?openEvo():closeEvo()});$('evoClose').addEventListener('click',closeEvo);
 function zoneProblem(n,x,y){if(Math.hypot(n.x-x,n.y-y)>1500)return 'Zu weit vom Bau (max. 1500)';if(n.zones.length>=3)return 'Maximal 3 Gebiete pro Bau';return null}
-function startMode(kind,n){mode={kind,nest:n};$('modeText').textContent=kind==='split'?'Klicke auf einen freien Platz für den neuen Bau':'Klicke: Gebiet setzen · Klick auf ein Gebiet: entfernen (max. 3)';
+function startMode(kind,n){mode={kind,nest:n};$('modeText').textContent=kind==='split'?'Klicke auf einen freien Platz für den neuen Bau':kind==='farm'?`Klicke auf einen Platz für die Blattlaus-Weide (max. ${FARM_D} vom Bau)`:'Klicke: Gebiet setzen · Klick auf ein Gebiet: entfernen (max. 3)';
   $('modeBar').hidden=false;if(innerWidth<=700)closePanel()}
 function endMode(){mode=null;$('modeBar').hidden=true}
 $('modeCancel').addEventListener('click',endMode);
 $('zoneBtn').addEventListener('click',()=>{if(sel.nest)startMode('zone',sel.nest)});
+$('farmBtn').addEventListener('click',()=>{const n=sel.nest;if(!n||!player)return;if(player.farms.filter(f=>f.nest===n).length>=FARM_MAX)return tip(`Maximal ${FARM_MAX} Weiden pro Bau`);if(n.food<FARM_COST)return tip('Nicht genug Futter in diesem Bau');startMode('farm',n)});
+$('farmList').addEventListener('pointerdown',e=>{const b=e.target.closest('button[data-f]');if(!b||!player)return;const f=player.farms.find(x=>String(x.id)===b.dataset.f);if(!f)return;
+  if(b.dataset.a==='up'){if(upFarm(player,f))toast(`Weide ausgebaut: Stufe ${f.level}`,'good');else tip(f.level>=3?'Weide ist voll ausgebaut':'Nicht genug Futter in diesem Bau');hudTick()}
+  else{cam.x=f.x;cam.y=f.y}});
 $('zoneClr').addEventListener('click',()=>{if(sel.nest){sel.nest.zones=[];for(const a of ants)if(a.home===sel.nest)a.area=-1;hudTick()}});
 $('splitBtn').addEventListener('click',()=>{const n=sel.nest;if(!n||!player)return;const c=player;
   if(n.level<2)return tip('Der Bau braucht Stufe 2 (Königinnenkammer)');
@@ -1714,6 +1811,10 @@ function hudTick(){
     $('trainNote').textContent=st==='popA'?`Armee-Plätze voll (${c.popA}/${c.capA}). Baue ein Kriegerquartier oder schick Kämpferinnen in den Kampf.`+(n.auto&&c.popW<c.capW?' Solange schlüpfen Sammlerinnen.':''):st==='popW'?`Sammler-Plätze voll (${c.popW}/${c.capW}). Baue eine Vorratskammer oder entlasse Sammlerinnen.`:st==='food'?`Zu wenig Futter in diesem Bau (nächstes Ei: ${Math.ceil(eggCost(n,n.nextEgg!=null&&n.nextEgg>=0?n.nextEgg:0))}).`:st==='idle'?'Brut pausiert: Warteschlange leer, automatische Sammlerinnen aus.':qn?`Brütet: ${UNIT[n.queue[0].t].name} · noch ${qn} in der Schlange`:n.auto?'Warteschlange leer: es schlüpfen Sammlerinnen'+(unlocked(c,3)?' und Trägerinnen':''):'';
     $('trainNote').classList.toggle('warn',st==='popA'||st==='popW'||st==='food');
     for(let t=0;t<6;t++){peopleRows[t].hidden=!unlocked(c,t)&&!n.cnt[t];peopleRows[t].querySelector('b').textContent=n.cnt[t]}
+    {const fs=c.farms.filter(f=>f.nest===n);const h=fs.map(f=>{const up=FARM_UP[f.level+1];
+      return `<div class="tr"><span class="ic" style="background:#9ccf62"></span><span>Weide ${'★'.repeat(f.level)}<br><small>${Math.floor(f.aph)}/${FARM_APH[f.level]} Läuse · ${Math.floor(f.honey)}/${FARM_CAP} Honigtau · +${farmRate(f).toFixed(1)}/s${time-f.lastHit<4?' · <b style="color:#ff8a70">Überfall!</b>':''}</small></span><span class="bs">${f.level<3?`<button class="btn sm${n.food<up?' dis':''}" type="button" data-f="${f.id}" data-a="up">Ausbau · ${up}</button>`:''}<button class="btn sm" type="button" data-f="${f.id}" data-a="go">Zeigen</button></span></div>`}).join('');
+     const el=$('farmList');if(el._h!==h){el._h=h;el.innerHTML=h}
+     $('farmBtn').classList.toggle('dis',fs.length>=FARM_MAX||n.food<FARM_COST);$('farmBtn').textContent=fs.length>=FARM_MAX?`Maximal ${FARM_MAX} Weiden`:`Weide anlegen · ${FARM_COST}`}
     $('zoneNote').textContent=`${n.zones.length}/3 Gebiete. Sammlerinnen arbeiten im Revier und in den Gebieten. Ist eins leer, wechseln sie ins nächste.`;
     const sc=splitCost(c),full=c.nests.length+c.travelers.length>=maxNests(c);
     setRow($('splitBtn'),full?'Limit':n.level<2?'ab Stufe 2':'',sc,!full&&n.level>=2&&n.food>=sc,full);}
@@ -1805,16 +1906,16 @@ function ovwTick(c){
     return st==='popA'?'<span class="warn">Armee voll</span>':st==='popW'?'<span class="warn">Sammler voll</span>':st==='food'?'<span class="warn">kein Futter</span>':st==='idle'?'pausiert':q?`${UNIT[n.queue[0].t].name} · ${q} in Schlange`:'Sammlerinnen'};
   const tot=[0,0,0,0,0,0];let tg=0,tf=0,tc=0;
   const rows=c.nests.map(n=>{for(const t of types)tot[t]+=n.cnt[t];tg+=n.gar;tf+=n.food;tc+=n.cap;const hf=n.hp/n.maxHp,hit=time-n.lastHit<4;
-    return `<tr class="cl${hit?' hit':''}" data-id="${n.id}"><td>${nestName(n)}${hit?' ⚠':''}</td><td>${n.level}</td><td><span class="hb${hf<.4?' low':''}"><i style="width:${(hf*100).toFixed(0)}%"></i></span>${Math.ceil(n.hp)}</td><td>${fmt(n.food)} / ${fmt(n.cap)}</td>${types.map(t=>`<td>${num(n.cnt[t])}</td>`).join('')}<td><b>${n.gar}</b></td><td class="l">${stTxt(n)}</td></tr>`}).join('');
+    return `<tr class="cl${hit?' hit':''}" data-id="${n.id}"><td>${nestName(n)}${hit?' ⚠':''}</td><td>${n.level}</td><td><span class="hb${hf<.4?' low':''}"><i style="width:${(hf*100).toFixed(0)}%"></i></span>${Math.ceil(n.hp)}</td><td>${fmt(n.food)} / ${fmt(n.cap)}</td>${types.map(t=>`<td>${num(n.cnt[t])}</td>`).join('')}<td><b>${n.gar}</b></td><td>${(()=>{const fs=c.farms.filter(f=>f.nest===n);return fs.length?`${fs.length} · ${Math.floor(fs.reduce((a,f)=>a+f.honey,0))} 🍯`:num(0)})()}</td><td class="l">${stTxt(n)}</td></tr>`}).join('');
   const setH=(id,h)=>{const el=$(id);if(el._h!==h){el._h=h;el.innerHTML=h}};
-  setH('ovNests',`<tr><th>Bau</th><th>Stufe</th><th>Leben</th><th>Futter</th>${head}<th>Garnison</th><th style="text-align:left">Brut</th></tr>`+rows+
-    (c.nests.length>1?`<tr class="tot"><td>Gesamt</td><td></td><td></td><td>${fmt(tf)} / ${fmt(tc)}</td>${types.map(t=>`<td>${tot[t]}</td>`).join('')}<td>${tg}</td><td></td></tr>`:''));
+  setH('ovNests',`<tr><th>Bau</th><th>Stufe</th><th>Leben</th><th>Futter</th>${head}<th>Garnison</th><th>Weiden</th><th style="text-align:left">Brut</th></tr>`+rows+
+    (c.nests.length>1?`<tr class="tot"><td>Gesamt</td><td></td><td></td><td>${fmt(tf)} / ${fmt(tc)}</td>${types.map(t=>`<td>${tot[t]}</td>`).join('')}<td>${tg}</td><td>${c.farms.length}</td><td></td></tr>`:''));
   const ft=[1,2,4,5].filter(t=>unlocked(c,t)||c.cnt[t]);
   setH('ovLegs',c.legions.length?`<tr><th>Legion</th><th>Größe</th>${ft.map(t=>`<th><span style="color:${UNIT[t].col}">●</span> ${UNIT[t].pl}</th>`).join('')}<th style="text-align:left">Auftrag</th></tr>`+
     c.legions.map(L=>`<tr class="cl" data-n="${L.num}"><td>Legion ${ROM[L.num]}</td><td><b>${L.size}</b></td>${ft.map(t=>`<td>${num(L.mix?L.mix[t]:0)}</td>`).join('')}<td class="l">${L.captive?'Königin heimbringen':L.target?'Angriff: '+esc(L.target.kind==='mob'?MOBS[L.target.type].name:L.target.col.name):L.defend?'Verteidigung':L.disband?'Heimweg':'Marsch'}</td></tr>`).join('')
     :'<tr><td class="l">Keine Legion unterwegs. Mit R stellst du eine zusammen.</td></tr>');
   const inLeg=c.legions.reduce((s,L)=>s+L.size,0);
-  setH('ovSum',`<span>Sammler-Plätze <b>${c.popW} / ${c.capW}</b></span><span>Armee-Plätze <b>${c.popA} / ${c.capA}</b></span><span>Kämpferinnen in Garnison <b>${tg}</b></span><span>in Legionen <b>${inLeg}</b></span><span>Futter gesamt <b>${fmt(c.bank)}</b></span>`);
+  setH('ovSum',`<span>Sammler-Plätze <b>${c.popW} / ${c.capW}</b></span><span>Armee-Plätze <b>${c.popA} / ${c.capA}</b></span><span>Kämpferinnen in Garnison <b>${tg}</b></span><span>in Legionen <b>${inLeg}</b></span><span>Futter gesamt <b>${fmt(c.bank)}</b></span><span>Honigtau pro Sekunde <b>+${c.farms.reduce((a,f)=>a+farmRate(f),0).toFixed(1)}</b></span>`);
 }
 function doRaise(){if(!player)return;$('raise').hidden?openRaise():closeRaise()}
 function doRaiseAll(){if(!player)return;const L=raiseLegion(player,1);if(L){selectLegion(L);toast(`Legion ${ROM[L.num]} ausgehoben: ${L.size} Kämpferinnen`,'good')}
@@ -1825,6 +1926,7 @@ $('disbBtn').addEventListener('click',()=>homeSel(true));
 function milestones(c){
   const m=run.ms,chk=(k,cond,t,cls)=>{if(!m[k]&&cond){m[k]=1;toast(t,cls)}};
   for(const n of [25,50,100,200,300])chk('p'+n,c.pop>=n,`${n} Ameisen im Volk!`);
+  if(!m.farmTip&&time-run.start>70&&!c.farms.length&&c.nests.some(n=>n.food>=FARM_COST+40)){m.farmTip=1;tip('Tipp: Im Bau-Menü kannst du Blattlaus-Weiden anlegen. Sie liefern dauerhaft Honigtau')}
   for(const n of [2,3,4,6])chk('n'+n,c.nests.length>=n,`${n} Baue!`,'good');
   for(const n of [1000,2500,5000,10000])chk('s'+n,c.strength>=n,`Stärke ${fmt(n)}!`);
   for(const n of [50,200,500,1000])chk('k'+n,c.kills>=n,`${n} Gegner erledigt!`);
@@ -1900,6 +2002,8 @@ function handleClick(sx,sy,btn){
   if(state!=='play'||!player||!player.alive)return;const w=toWorld(sx,sy);
   if(mode&&mode.kind==='split'){const bad=siteProblem(player,w.x,w.y,mode.nest);if(bad)return tip(bad);
     if(sendQueen(player,mode.nest,w.x,w.y))toast('Junge Königin ist unterwegs. Beschütze sie!','good');else tip('Nicht genug Futter');endMode();return}
+  if(mode&&mode.kind==='farm'){const n=mode.nest,bad=farmProblem(player,n,w.x,w.y);if(bad)return tip(bad);
+    if(tryFarm(player,n,w.x,w.y)){toast('Blattlaus-Weide angelegt!','good');if(!run.ms.farmT){run.ms.farmT=1;tip('Die Läuse vermehren sich langsam. Je mehr Läuse, desto mehr Honigtau. Deine Sammlerinnen holen ihn ab')}}else tip('Nicht genug Futter in diesem Bau');endMode();hudTick();return}
   if(mode&&mode.kind==='zone'){const n=mode.nest,i=n.zones.findIndex(zo=>Math.hypot(zo.x-w.x,zo.y-w.y)<zo.r);
     if(i>=0){n.zones.splice(i,1);for(const a of ants)if(a.home===n)a.area=-1;hudTick();return}
     const bad=zoneProblem(n,w.x,w.y);if(bad)return tip(bad);
