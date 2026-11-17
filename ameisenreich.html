@@ -119,6 +119,19 @@ h3.sec{margin:14px 0 6px;font-family:var(--f-display);font-size:12px;font-weight
 .leg.sel .num{color:var(--amber-hi)}
 .leg:focus-visible{outline:2px solid var(--amber)}
 .legact{display:flex;gap:6px;flex-direction:column}
+.leg .mx{display:flex;gap:4px;font-size:10px;color:var(--muted);margin-top:2px}
+.leg .mx i{font-style:normal}
+.leg.grp{border-color:var(--amber);background:var(--panel-hi);transform:translateY(-6px)}
+#legGrp{font-size:11px;color:var(--amber-hi);text-align:center}
+#raise{left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 24px));max-height:min(86vh,700px);overflow-y:auto;padding:16px 18px 18px;z-index:8;background:rgba(22,14,8,.96)}
+#raise .ph h2{font-size:24px}
+.rr{display:grid;grid-template-columns:12px minmax(0,1fr) minmax(90px,1.3fr) 58px auto;gap:8px;align-items:center;padding:6px 8px;border-radius:7px;background:rgba(255,255,255,.03);font-size:13px}
+.rr .ic{width:10px;height:10px;border-radius:50%}
+.rr input{width:100%;accent-color:var(--amber)}
+.rr b{text-align:right;font-variant-numeric:tabular-nums}
+.rr .bs{display:flex;gap:4px}
+#rsPre{margin:4px 0 10px}
+#rsAct{margin-top:12px}
 
 /* evolution sheet */
 #evo{left:50%;top:50%;transform:translate(-50%,-50%);width:min(1100px,calc(100vw - 24px));max-height:min(88vh,860px);overflow-y:auto;padding:16px 18px 18px;z-index:8;background:rgba(22,14,8,.96)}
@@ -335,20 +348,31 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
 <div id="legbar" class="hud" hidden>
   <div class="gar panel">
     <div class="gl"><span>Garnison</span><b id="garN">0</b></div>
-    <button class="btn" id="raiseBtn" type="button">Legion ausheben <kbd>R</kbd></button>
+    <button class="btn" id="raiseBtn" type="button">Legion zusammenstellen <kbd>R</kbd></button>
   </div>
   <div id="legList"></div>
   <div class="legact" id="legAct" hidden>
     <button class="btn" id="homeBtn" type="button">Heim <kbd>H</kbd></button>
     <button class="btn red" id="disbBtn" type="button">Auflösen <kbd>X</kbd></button>
+    <span id="legGrp"></span>
   </div>
+</div>
+
+<div id="raise" class="hud panel" hidden>
+  <div class="ph"><div><h2>Legion zusammenstellen</h2><small>Wähle, welche Kämpferinnen mitmarschieren. Der Rest bleibt als Garnison im Bau.</small></div><button class="x" id="rsClose" type="button" aria-label="Schließen">×</button></div>
+  <div class="lgsel"><label for="rsFrom">Aus<select class="sel" id="rsFrom"></select></label></div>
+  <div class="btnrow" id="rsPre"><button class="btn sm" type="button" data-p="all">Alle</button><button class="btn sm" type="button" data-p="melee">Nur Nahkampf</button><button class="btn sm" type="button" data-p="spit">Nur Spuckerinnen</button><button class="btn sm" type="button" data-p="half">Hälfte</button><button class="btn sm" type="button" data-p="none">Keine</button></div>
+  <div class="lgt" id="rsRows"></div>
+  <p class="status" id="rsSum"></p>
+  <div class="btnrow" id="rsAct"><button class="btn" id="rsGo" type="button">Neue Legion ausheben</button><button class="btn" id="rsAdd" type="button" hidden>Zur Legion hinzufügen</button></div>
+  <p class="note">Shift + R hebt sofort alle Kämpferinnen aus.</p>
 </div>
 
 <div id="modeBar" class="hud panel" hidden><span id="modeText"></span><button class="btn" id="modeCancel" type="button">Fertig <kbd>Esc</kbd></button></div>
 <canvas id="mini" class="hud" hidden></canvas>
 <div id="feed" class="hud"></div>
 <div id="toasts" class="hud"></div>
-<div id="hint" class="hud" hidden><b>Ziehen</b>/<b>WASD</b> Karte · <b>Rad</b> Zoom<br><b>Klick Bau</b> Räume, Brut, Gebiete<br><kbd>E</kbd> Evolution · <kbd>R</kbd> Legion<br><kbd>1</kbd>–<kbd>5</kbd> Legion wählen, dann Klick<br>Klick auf fremden Bau = Überfall</div>
+<div id="hint" class="hud" hidden><b>Ziehen</b>/<b>WASD</b> Karte · <b>Rad</b> Zoom<br><b>Klick Bau</b> Räume, Brut, Gebiete<br><kbd>E</kbd> Evolution · <kbd>R</kbd> Legion bilden<br><kbd>1</kbd>–<kbd>5</kbd> Legion wählen, dann Klick<br><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>5</kbd>/Klick: mehrere · <kbd>Q</kbd> alle<br>Klick auf fremden Bau = Überfall</div>
 <div id="touch" class="hud" hidden><button id="zIn" type="button" aria-label="Hineinzoomen">+</button><button id="zOut" type="button" aria-label="Herauszoomen">−</button></div>
 
 <div id="start" class="overlay">
@@ -367,7 +391,8 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
       <kbd>Ereignisse</kbd><span>Riesenkäfer, Würmer, heruntergefallenes Eis, aber auch Spinnen und Riesenschuhe. Klick ein Ereignis rechts an, um hinzuspringen.</span>
       <kbd>E</kbd><span>Evolution: jede Ameisenart hat ihren eigenen Baum. Fortschritt schaltet neue Bäume und Arten frei, Kämpferinnen bekommen einmalige Spezialisierungen.</span>
       <kbd>Nebel</kbd><span>Du siehst nur, was deine Ameisen sehen. Sammlerinnen und Legionen erkunden die Karte.</span>
-      <kbd>R</kbd><span>Alle Kämpferinnen der Garnison werden zu einer Legion.</span>
+      <kbd>R</kbd><span>Legion zusammenstellen: du wählst, wie viele Kriegerinnen, Spuckerinnen usw. mitgehen. Shift + R nimmt alle.</span>
+      <kbd>Shift</kbd><span>Shift + 1–5 oder Shift + Klick wählt mehrere Legionen, Q wählt alle. Sie marschieren zusammen.</span>
       <kbd>1–5</kbd><span>Legion wählen, dann auf die Karte klicken. Fremder Bau = Überfall.</span>
     </div>
     <div class="meta">
@@ -569,7 +594,7 @@ let colonies=[],structs=[],ants=[],foods=[],parts=[],floats=[],projs=[],marks=[]
 let player=null,state='menu',time=0,uid=1;
 const cam={x:WORLD/2,y:WORLD/2,z:.6};
 const mouse={x:0,y:0};
-const sel={legion:null,nest:null};let mode=null;
+const sel={legion:null,nest:null,multi:new Set()};let mode=null;
 const run={start:0,peak:0,ms:{},alertT:-99,tipT:0};
 const SKKEYS=Object.keys(NODES);
 
@@ -578,7 +603,7 @@ function makeColony(name,color,isPlayer){
   const [cr,cg,cb]=hexRgb(color);
   const c={id:uid++,name,color,dark:shade(color,.42),mid:shade(color,.72),ghost:`rgb(${cr+(255-cr)*.6|0},${cg+(255-cg)*.6|0},${cb+(255-cb)*.6|0})`,skinA:'std',skinN:'erde',isPlayer,alive:true,bank:0,storeCap:150,popCap:20,capW:14,capA:6,popW:0,popA:0,
     totalFood:0,kills:0,nestKills:0,pop:0,born:time,doc:{},seenTrees:null,cnt:[0,0,0,0,0,0],idleW:0,strength:0,shield:0,nestSeq:0,
-    nests:[],travelers:[],legions:[],carriers:[],sk,ai:{t:rnd(1),raidCd:rnd(50,120),aggr:rnd(.3,1),zt:0},vis:[]};
+    nests:[],travelers:[],legions:[],carriers:[],sk,ai:{t:rnd(1),raidCd:rnd(50,120),aggr:rnd(.3,1),zt:0},vis:[],fog:isPlayer?null:new Uint8Array(FW*FW)};
   colonies.push(c);return c;
 }
 function makeNest(c,x,y,level,plan){
@@ -693,6 +718,15 @@ function updateFog(){
   fctx.putImageData(fogImg,0,0);
 }
 function resetFog(){fogExp.fill(0);fogVis.fill(0);fogT=0}
+/* bots explore too: each bot only knows the cells its own ants and nests have seen */
+function revealG(g,x,y,r){const cx=x/FOGC,cy=y/FOGC,rr=r/FOGC,r2=rr*rr;
+  const x0=Math.max(0,Math.floor(cx-rr)),x1=Math.min(FW-1,Math.floor(cx+rr)),y0=Math.max(0,Math.floor(cy-rr)),y1=Math.min(FW-1,Math.floor(cy+rr));
+  for(let gy=y0;gy<=y1;gy++)for(let gx=x0;gx<=x1;gx++){const dx=gx+.5-cx,dy=gy+.5-cy;if(dx*dx+dy*dy<=r2+.5)g[gx+gy*FW]=1}}
+function updateBotFog(){
+  for(const c of colonies)if(c.fog){for(const n of c.nests)revealG(c.fog,n.x,n.y,n.R*1.05);for(const q of c.travelers)revealG(c.fog,q.x,q.y,200)}
+  for(const a of ants){const g=a.col.fog;if(!g||!a.alive)continue;const gx=a.x/FOGC|0,gy=a.y/FOGC|0;
+    for(let y=Math.max(0,gy-1);y<=Math.min(FW-1,gy+1);y++)for(let x=Math.max(0,gx-1);x<=Math.min(FW-1,gx+1);x++)g[x+y*FW]=1}}
+const knows=(c,x,y)=>!c.fog||c.fog[fIdx(x,y)]===1;
 let fogT=0;
 function release(a){if(a.food){a.food.claim=Math.max(0,a.food.claim-1);a.food=null}}
 const nearestOwnNest=(c,x,y)=>{let b=null,bd=Infinity;for(const n of c.nests){const d=(n.x-x)**2+(n.y-y)**2;if(d<bd){bd=d;b=n}}return b};
@@ -734,6 +768,23 @@ function raiseLegion(c,frac=1,from=null){
   pool.sort((a,b)=>b.sz-a.sz);
   let sx=0,sy=0;for(let i=0;i<take;i++){const a=pool[i];a.legion=L;a.slot=L.slots++;sx+=a.x;sy+=a.y;a.enemy=a.es=null}
   L.tx=L.cx=sx/take;L.ty=L.cy=sy/take;L.size=take;c.legions.push(L);c.legions.sort((a,b)=>a.num-b.num);return L;
+}
+/* raise a legion with a chosen mix of fighter types, or add them to an existing legion */
+function raiseMix(c,counts,from,into){
+  if(into&&!c.legions.includes(into))into=null;if(!into&&c.legions.length>=5)return null;
+  const picked=[];
+  for(const t of [1,2,4,5]){let k=counts[t]|0;if(k<=0)continue;
+    const pool=[];for(const a of ants)if(a.alive&&a.col===c&&a.type===t&&!a.legion&&(!from||a.home===from))pool.push(a);
+    if(into)pool.sort((a,b)=>Math.hypot(a.x-into.cx,a.y-into.cy)-Math.hypot(b.x-into.cx,b.y-into.cy));
+    for(let i=0;i<Math.min(k,pool.length);i++)picked.push(pool[i])}
+  if(!picked.length)return null;
+  let L=into;
+  if(!L){const used=new Set(c.legions.map(l=>l.num));let num=0;while(used.has(num))num++;
+    L={id:uid++,col:c,num,tx:0,ty:0,target:null,disband:false,defend:false,size:0,init:0,cx:0,cy:0,slots:0,mix:[0,0,0,0,0,0]};
+    let sx=0,sy=0;for(const a of picked){sx+=a.x;sy+=a.y}L.tx=L.cx=sx/picked.length;L.ty=L.cy=sy/picked.length;c.legions.push(L);c.legions.sort((a,b)=>a.num-b.num)}
+  picked.sort((a,b)=>b.sz-a.sz);
+  for(const a of picked){a.legion=L;a.slot=L.slots++;a.enemy=a.es=null;L.mix[a.type]++}
+  L.init+=picked.length;L.size+=picked.length;L.disband=false;return L;
 }
 function legionHome(L,disband){const n=nearestOwnNest(L.col,L.cx,L.cy);if(!n)return;L.target=null;L.tx=n.x;L.ty=n.y;L.disband=!!disband;L.defend=false}
 function structAt(x,y,pad){for(const s of structs)if(s.alive&&Math.hypot(s.x-x,s.y-y)<s.r+pad)return s;return null}
@@ -1023,7 +1074,7 @@ function botSpend(c){
   let r=rnd(ok.reduce((a,o)=>a+o.w,0));for(const o of ok){r-=o.w;if(r<=0){o.f();return}}
 }
 function botZones(c){
-  for(const n of c.nests){n.zones=[];const ps=patches.map(p=>({p,d:Math.hypot(p.x-n.x,p.y-n.y)})).filter(o=>o.d>n.R*.7&&o.d<1300).sort((a,b)=>a.d-b.d);
+  for(const n of c.nests){n.zones=[];const ps=patches.filter(p=>knows(c,p.x,p.y)).map(p=>({p,d:Math.hypot(p.x-n.x,p.y-n.y)})).filter(o=>o.d>n.R*.7&&o.d<1300).sort((a,b)=>a.d-b.d);
     for(const o of ps.slice(0,1+(n.level>=3?1:0)))n.zones.push({x:o.p.x,y:o.p.y,r:ZONE_R})}
 }
 function updateAI(c,dt){
@@ -1050,7 +1101,7 @@ function updateAI(c,dt){
     const gar=main.gar,need=8+3*c.nests.reduce((s,n)=>s+n.level,0);
     if(gar>=need){
       const size=Math.floor(gar*.75);let best=null,bs=Infinity;
-      for(const s of structs){if(!s.alive||s.col===c||s.col.shield>time||time-s.col.born<240)continue;const d=Math.hypot(s.x-main.x,s.y-main.y);if(d>1900)continue;
+      for(const s of structs){if(!s.alive||s.col===c||s.col.shield>time||time-s.col.born<240||!knows(c,s.x,s.y))continue;const d=Math.hypot(s.x-main.x,s.y-main.y);if(d>1900)continue;
         const def=s.kind==='nest'?(s.gar*.8+s.level*2+s.rooms.guard*3):s.kind==='mob'?s.hp/60:2;if(def>size*1.15)continue;
         const sc=d*(.5+def/size)*(s.col.isPlayer?1.15:s.kind==='mob'?.6:1);if(sc<bs){bs=sc;best=s}}
       if(best){const L=raiseLegion(c,.75,main);if(L){L.target=best;L.tx=best.x;L.ty=best.y}ai.raidCd=rnd(40,85)/(.5+ai.aggr)}else ai.raidCd=10;
@@ -1070,20 +1121,29 @@ function spawnBot(initial){
   const usedC=new Set(colonies.map(c=>c.color)),fc=BOTCOLORS.filter(x=>!usedC.has(x));
   const c=makeColony(free.length?free[rnd(free.length)|0]:'Kolonie '+uid,fc.length?fc[rnd(fc.length)|0]:BOTCOLORS[rnd(BOTCOLORS.length)|0],false);
   const p=findSpawn(700);
-  const lvl=initial?1+Math.floor(Math.pow(Math.random(),1.6)*3):1;
+  const fair=initial==='fair',lvl=initial&&!fair?1+Math.floor(Math.pow(Math.random(),1.6)*3):1;
   const n=makeNest(c,p.x,p.y,lvl);
-  for(let i=0;i<lvl*2;i++){const r=ROOMS[rnd(ROOMS.length)|0];if(n.rooms[r.k]<roomMax(n))n.rooms[r.k]++}
+  for(let i=0;i<(fair?0:lvl*2);i++){const r=ROOMS[rnd(ROOMS.length)|0];if(n.rooms[r.k]<roomMax(n))n.rooms[r.k]++}
   if(lvl>=2&&Math.random()<.5){c.sk.jaw=2;c.sk.plate=1}
   for(let i=0;i<(lvl-1)*3;i++){const k=SKKEYS[rnd(SKKEYS.length)|0],nd=NODES[k];if(c.sk[k]<Math.min(2,nd.max)&&!nodeLock(c,nd))c.sk[k]++}
   if(initial&&lvl>=2&&Math.random()<.3){for(let i=0;i<12;i++){const a=rnd(TAU),x=p.x+Math.cos(a)*700,y=p.y+Math.sin(a)*700;if(!siteProblem(c,x,y,null)){makeNest(c,x,y,1);break}}}
-  updNest(n);n.hp=n.maxHp;colCaps(c);botZones(c);
+  updNest(n);n.hp=n.maxHp;colCaps(c);revealG(c.fog,n.x,n.y,n.R*1.05);botZones(c);
+  if(fair){/* same start as the player (without Bernstein bonuses) */
+    for(let i=0;i<6;i++)spawnAnt(c,n,0);for(let i=0;i<3;i++)spawnAnt(c,n,1);n.food=80;c.shield=time+90;
+    if(Math.random()<.45)c.skinA=ANT_SKINS[1+(rnd(ANT_SKINS.length-1)|0)].id;if(Math.random()<.45)c.skinN=NEST_SKINS[1+(rnd(NEST_SKINS.length-1)|0)].id;return}
   const pw=Math.floor(c.capW*(initial?rnd(.4,.75):.45)),pa=Math.floor(c.capA*(initial?rnd(.4,.8):.4));
   for(let i=0;i<pw+pa;i++){const nn=c.nests[i%c.nests.length];const t=i>=pw?(unlocked(c,2)&&Math.random()<.3?2:1):0;const a=rnd(TAU),d=rnd(nn.R*.6);spawnAnt(c,nn,t,nn.x+Math.cos(a)*d,nn.y+Math.sin(a)*d)}
   for(const nn of c.nests)nn.food=initial?rnd(60,180):50;if(!initial)c.shield=time+30;
   if(Math.random()<.45)c.skinA=ANT_SKINS[1+(rnd(ANT_SKINS.length-1)|0)].id;if(Math.random()<.45)c.skinN=NEST_SKINS[1+(rnd(NEST_SKINS.length-1)|0)].id;
 }
 for(let i=0;i<BOTN;i++)spawnBot(true);
-let botT=0;
+/* fresh world for every round: the menu world keeps running, so bots would start with a big head start */
+function resetWorld(){
+  colonies=[];structs=[];ants=[];foods=[];projs=[];parts=[];floats=[];marks=[];pools=[];stomps=[];events.length=0;rainEnd=-1;evTimer=40;
+  patches=[];for(let i=0;i<36;i++)patches.push(newPatch());for(let i=0;i<FOODN;i++)spawnNatural();
+  for(let i=0;i<BOTN;i++)spawnBot('fair');botT=0;botFogT=0;
+}
+let botT=0,botFogT=0;
 
 /* ---------- update ---------- */
 const keys={};
@@ -1097,6 +1157,7 @@ function update(dt){
   if(keys.KeyW||keys.ArrowUp)cam.y-=pan;if(keys.KeyS||keys.ArrowDown)cam.y+=pan;if(keys.KeyA||keys.ArrowLeft)cam.x-=pan;if(keys.KeyD||keys.ArrowRight)cam.x+=pan;
   buildGrids();
   fogT-=dt;if(fogT<=0){fogT=.15;updateFog()}
+  botFogT-=dt;if(botFogT<=0){botFogT=1;updateBotFog()}
   for(const c of colonies){colCaps(c);if(!c.isPlayer)updateAI(c,dt)}
   updateEvents(dt);
   for(const s of structs)if(s.alive){if(s.kind==='nest')updateNest(s,dt);else if(s.kind==='mob')updateMob(s,dt);else updateTraveler(s,dt)}
@@ -1109,11 +1170,11 @@ function update(dt){
   let w=0;for(const a of ants)if(a.alive)ants[w++]=a;ants.length=w;
   w=0;for(const f of foods)if(!f.dead&&f.v>0)foods[w++]=f;foods.length=w;
   structs=structs.filter(s=>s.alive);colonies=colonies.filter(c=>c.alive);
-  for(const c of colonies){c.pop=0;c.popW=0;c.popA=0;c.cnt.fill(0);c.idleW=0;c.carriers.length=0;for(const L of c.legions){L.size=0;L.cx=0;L.cy=0;L.leader=false}}
+  for(const c of colonies){c.pop=0;c.popW=0;c.popA=0;c.cnt.fill(0);c.idleW=0;c.carriers.length=0;for(const L of c.legions){L.size=0;L.cx=0;L.cy=0;L.leader=false;L.mix=[0,0,0,0,0,0]}}
   for(const s of structs)if(s.kind==='nest'){s.gar=0;s.cnt.fill(0)}
   const ccap=new Map();
   for(const a of ants){const c=a.col;c.pop++;if(isFighter(a.type))c.popA++;else c.popW++;c.cnt[a.type]++;
-    if(a.legion){a.legion.size++;a.legion.cx+=a.x;a.legion.cy+=a.y;if(a.type===4&&c.doc.g1==='leader')a.legion.leader=true}
+    if(a.legion){a.legion.size++;a.legion.mix[a.type]++;a.legion.cx+=a.x;a.legion.cy+=a.y;if(a.type===4&&c.doc.g1==='leader')a.legion.leader=true}
     else if(a.home.alive){a.home.cnt[a.type]++;if(isFighter(a.type))a.home.gar++}
     if(a.type===0&&!a.carry&&!a.food&&!a.scout)c.idleW++;
     if(a.type===3&&!a.ret){if(!ccap.has(c))ccap.set(c,carrierCap(c));if(a.load<ccap.get(c))c.carriers.push(a)}}
@@ -1317,7 +1378,7 @@ function drawStomp(s,z){
   else{const e=(time-s.t)/1.2;ctx.globalAlpha=Math.max(0,1-e);ctx.strokeStyle='#a08060';ctx.lineWidth=6/z;ctx.beginPath();ctx.arc(s.x,s.y,s.r*(1+e*.5),0,TAU);ctx.stroke();ctx.globalAlpha=1}
 }
 function drawLegion(L,z){
-  const c=L.col,mine=c.isPlayer,isSel=sel.legion===L;
+  const c=L.col,mine=c.isPlayer,isSel=sel.legion===L||sel.multi.has(L);
   if(mine){ctx.strokeStyle=isSel?'rgba(255,210,122,.6)':'rgba(255,210,122,.22)';ctx.lineWidth=1.5/z;ctx.setLineDash([6/z,6/z]);ctx.beginPath();ctx.moveTo(L.cx,L.cy);ctx.lineTo(L.tx,L.ty);ctx.stroke();ctx.setLineDash([])}
   if(isSel){ctx.strokeStyle='rgba(255,210,122,.85)';ctx.lineWidth=2/z;ctx.beginPath();ctx.arc(L.cx,L.cy,12*Math.sqrt(L.size)+14,0,TAU);ctx.stroke()}
   const h=26/Math.max(z,.6),bx=L.cx,by=L.cy-12*Math.sqrt(L.size)-8;
@@ -1442,7 +1503,7 @@ const evoPayNest=()=>{const id=$('evoPay').value;return player&&(player.nests.fi
    d.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{if(lg.from&&lg.to&&lg.from!==lg.to&&lg.from.alive&&lg.to.alive){act(b.dataset.q);hudTick()}}));box.appendChild(d);return d};
  lg.rows.push(mk('#ffd27a','Futter',['25','100','half'],q=>{const f=lg.from,v=q==='half'?f.food/2:+q;const m=moveFood(f,lg.to,v);if(m)floats.push({x:lg.to.x,y:lg.to.y-lg.to.r-10,t:'+'+m,l:1.1,c:'#ffd27a'});else tip(lg.to.food>=lg.to.cap-1?'Das Lager im Zielbau ist voll':'Kein Futter zum Verschieben')}));
  UNIT.forEach((u,t)=>lg.rows.push(mk(u.col,u.pl,['1','5','all'],q=>{const k=transfer(player,lg.from,lg.to,t,q==='all'?1e9:+q);if(k)toast(`${k} ${k===1?u.name:u.pl} → ${nestName(lg.to)}`)})));}
-function openLogi(from){if(!player)return;closeEvo();lg.from=from||sel.nest||player.nests[0];lg.to=player.nests.find(n=>n!==lg.from)||null;lgSig='';$('logi').hidden=false;hudTick()}
+function openLogi(from){if(!player)return;closeEvo();closeRaise();lg.from=from||sel.nest||player.nests[0];lg.to=player.nests.find(n=>n!==lg.from)||null;lgSig='';$('logi').hidden=false;hudTick()}
 function closeLogi(){$('logi').hidden=true}
 let lgSig='';
 $('lgBtn').addEventListener('click',()=>$('logi').hidden?openLogi():closeLogi());$('lgClose').addEventListener('click',closeLogi);$('npLogi').addEventListener('click',()=>openLogi(sel.nest));
@@ -1498,7 +1559,7 @@ $('shClose').addEventListener('click',()=>{$('shop').hidden=true;$('start').hidd
 function selectNest(n){sel.nest=n;$('nestPanel').hidden=false;qSig='';$('autoW').checked=n.auto;hudTick()}
 function closePanel(){sel.nest=null;$('nestPanel').hidden=true}
 $('npClose').addEventListener('click',closePanel);
-function openEvo(){closeLogi();payOptSig='';$('evo').hidden=false;hudTick()}
+function openEvo(){closeLogi();closeRaise();payOptSig='';$('evo').hidden=false;hudTick()}
 $('evoPay').addEventListener('change',()=>hudTick());function closeEvo(){$('evo').hidden=true}
 $('evoBtn').addEventListener('click',()=>{$('evo').hidden?openEvo():closeEvo()});$('evoClose').addEventListener('click',closeEvo);
 function zoneProblem(n,x,y){if(Math.hypot(n.x-x,n.y-y)>1500)return 'Zu weit vom Bau (max. 1500)';if(n.zones.length>=3)return 'Maximal 3 Gebiete pro Bau';return null}
@@ -1554,9 +1615,12 @@ function hudTick(){
     const sc=splitCost(c),full=c.nests.length+c.travelers.length>=maxNests(c);
     setRow($('splitBtn'),full?'Limit':n.level<2?'ab Stufe 2':'',sc,!full&&n.level>=2&&n.food>=sc,full);}
   let gar=0;for(const nn of c.nests)gar+=nn.gar;$('garN').textContent=gar;$('raiseBtn').classList.toggle('dis',gar<1||c.legions.length>=5);
-  const sig=c.legions.map(L=>L.num+':'+L.size+':'+(L.target?'a':L.disband?'d':'m')+(sel.legion===L?'s':'')).join('|');
-  if(sig!==legSig){legSig=sig;$('legList').innerHTML=c.legions.map(L=>`<button class="leg${sel.legion===L?' sel':''}" type="button" data-n="${L.num}"><kbd>${L.num+1}</kbd><span class="num">${ROM[L.num]}</span><span class="cnt">${L.size} ⚔</span><span class="st">${L.target?'Angriff':L.disband?'Heimweg':'Marsch'}</span></button>`).join('')}
-  $('legAct').hidden=!sel.legion;
+  fixSel();
+  const sig=c.legions.map(L=>L.num+':'+L.size+':'+(L.mix||[]).join(',')+':'+(L.target?'a':L.disband?'d':'m')+(sel.legion===L?'s':sel.multi.has(L)?'g':'')).join('|');
+  if(sig!==legSig){legSig=sig;$('legList').innerHTML=c.legions.map(L=>{const mx=[1,2,4,5].filter(t=>L.mix&&L.mix[t]).map(t=>`<i style="color:${UNIT[t].col}" title="${UNIT[t].pl}">●${L.mix[t]}</i>`).join('');
+    return `<button class="leg${sel.legion===L?' sel':sel.multi.has(L)?' grp':''}" type="button" data-n="${L.num}"><kbd>${L.num+1}</kbd><span class="num">${ROM[L.num]}</span><span class="cnt">${L.size} ⚔</span><span class="mx">${mx}</span><span class="st">${L.target?'Angriff':L.disband?'Heimweg':'Marsch'}</span></button>`}).join('')}
+  $('legAct').hidden=!sel.legion;const ng=selLegs().length;$('legGrp').textContent=ng>1?`${ng} Legionen gewählt`:'';
+  if(!$('raise').hidden)rsTick(c);
   let dl=0;for(const nn of c.nests)if(time-nn.lastHit<2)dl=.6;for(const s of stomps)if(!s.done&&c.nests.some(nn=>Math.hypot(nn.x-s.x,nn.y-s.y)<s.r+200))dl=Math.max(dl,.4+.3*Math.sin(time*10));$('danger').style.opacity=dl;
   const evp=$('evPanel');evp.hidden=!events.length||innerWidth<=700;
   if(!evp.hidden){evp.style.top=($('lb').getBoundingClientRect().bottom+8)+'px';
@@ -1566,15 +1630,69 @@ function hudTick(){
   milestones(c);
 }
 $('evList').addEventListener('pointerdown',e=>{const b=e.target.closest('.ev');if(!b)return;const ev=events[+b.dataset.i];if(!ev)return;const o=ev.obj&&ev.obj.alive?ev.obj:ev;cam.x=o.x;cam.y=o.y;
-  if(sel.legion&&ev.obj&&ev.obj.alive){commandLegion(sel.legion,ev.obj.x,ev.obj.y);toast(`Legion ${ROM[sel.legion.num]} greift an: ${ev.name}`)}});
-$('legList').addEventListener('click',e=>{const b=e.target.closest('.leg');if(!b||!player)return;const L=player.legions.find(l=>l.num==b.dataset.n);if(L)selectLegion(L,true)});
-function selectLegion(L,center){if(sel.legion===L&&center){cam.x=L.cx;cam.y=L.cy}sel.legion=L;hudTick();
-  if(!run.ms.selTip){run.ms.selTip=1;tip('Klicke auf die Karte. Ein Klick auf einen fremden Bau ist ein Überfall!')}}
-function doRaise(){if(!player)return;const L=raiseLegion(player,1);if(L){selectLegion(L);toast(`Legion ${ROM[L.num]} ausgehoben: ${L.size} Kämpferinnen`,'good')}
+  if(sel.legion&&ev.obj&&ev.obj.alive){cmdSel(ev.obj.x,ev.obj.y);toast(`${selName()} greift an: ${ev.name}`)}});
+$('legList').addEventListener('click',e=>{const b=e.target.closest('.leg');if(!b||!player)return;const L=player.legions.find(l=>l.num==b.dataset.n);if(L)selectLegion(L,!e.shiftKey,e.shiftKey)});
+/* selection: sel.legion is the lead legion, sel.multi holds the others picked with Shift */
+const shiftDown=()=>!!(keys.ShiftLeft||keys.ShiftRight);
+function selLegs(){if(!player)return[];return player.legions.filter(L=>L===sel.legion||sel.multi.has(L))}
+function selName(){const l=selLegs();return l.length>1?l.map(L=>ROM[L.num]).join(' + '):l[0]?'Legion '+ROM[l[0].num]:''}
+function clearSel(){sel.legion=null;sel.multi.clear()}
+function fixSel(){if(!player){clearSel();return}
+  for(const L of [...sel.multi])if(!player.legions.includes(L)||L===sel.legion)sel.multi.delete(L);
+  if(sel.legion&&!player.legions.includes(sel.legion))sel.legion=null;
+  if(!sel.legion&&sel.multi.size){sel.legion=[...sel.multi][0];sel.multi.delete(sel.legion)}}
+function selectLegion(L,center,add){
+  if(add&&sel.legion&&sel.legion!==L){if(sel.multi.has(L))sel.multi.delete(L);else sel.multi.add(L);hudTick();return}
+  if(add&&sel.legion===L){sel.legion=null;fixSel();hudTick();return}
+  if(sel.legion===L&&center&&!sel.multi.size){cam.x=L.cx;cam.y=L.cy}sel.multi.clear();sel.legion=L;hudTick();
+  if(!run.ms.selTip){run.ms.selTip=1;tip('Klicke auf die Karte. Ein Klick auf einen fremden Bau ist ein Überfall! Mit Shift wählst du mehrere Legionen')}}
+function selectAll(){if(!player||!player.legions.length)return tip('Du hast noch keine Legion');sel.legion=player.legions[0];sel.multi=new Set(player.legions.slice(1));hudTick();toast(`Alle ${player.legions.length} Legionen gewählt`)}
+/* order every selected legion; on open ground they line up side by side instead of piling onto one spot */
+function cmdSel(x,y){const legs=selLegs();if(!legs.length)return;
+  const s=structAt(x,y,22);if(legs.length===1||(s&&s.col!==player)){for(const L of legs)commandLegion(L,x,y);return}
+  let gx=0,gy=0;for(const L of legs){gx+=L.cx;gy+=L.cy}gx/=legs.length;gy/=legs.length;
+  const perp=Math.atan2(y-gy,x-gx)+Math.PI/2,ws=legs.map(L=>2*(11*Math.sqrt(L.size)+10)),tot=ws.reduce((a,b)=>a+b,0);
+  const order=legs.slice().sort((a,b)=>((a.cx-gx)*Math.cos(perp)+(a.cy-gy)*Math.sin(perp))-((b.cx-gx)*Math.cos(perp)+(b.cy-gy)*Math.sin(perp)));
+  let o=-tot/2;order.forEach(L=>{const w=ws[legs.indexOf(L)],m=o+w/2;o+=w;commandLegion(L,x+Math.cos(perp)*m,y+Math.sin(perp)*m)})}
+function homeSel(disband){const legs=selLegs();for(const L of legs)legionHome(L,disband);if(disband)clearSel();hudTick()}
+/* raise dialog */
+const RS_T=[1,2,4,5],rs={from:null,n:{1:0,2:0,4:0,5:0},rows:{},sig:''};
+function rsAvail(c,t){let k=0;for(const n of c.nests)if(!rs.from||n===rs.from)k+=n.cnt[t];return k}
+{const box=$('rsRows');for(const t of RS_T){const u=UNIT[t],d=document.createElement('div');d.className='rr';
+  d.innerHTML=`<span class="ic" style="background:${u.col}"></span><span>${u.pl}</span><input type="range" min="0" max="0" step="1" value="0" aria-label="${u.pl} für die Legion"><b>0 / 0</b><span class="bs"><button class="btn sm" type="button" data-q="-">−</button><button class="btn sm" type="button" data-q="+">+</button><button class="btn sm" type="button" data-q="all">Alle</button></span>`;
+  const inp=d.querySelector('input');inp.addEventListener('input',()=>{rs.n[t]=+inp.value;hudTick()});
+  d.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{const av=rsAvail(player,t),q=b.dataset.q;rs.n[t]=q==='all'?av:clamp(rs.n[t]+(q==='+'?1:-1),0,av);hudTick()}));
+  box.appendChild(d);rs.rows[t]=d}}
+function rsPreset(p){if(!player)return;for(const t of RS_T){const av=rsAvail(player,t);rs.n[t]=p==='all'?av:p==='half'?Math.ceil(av/2):p==='melee'?(t===1||t===4?av:0):p==='spit'?(t===2?av:0):0}hudTick()}
+$('rsPre').addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(b)rsPreset(b.dataset.p)});
+function openRaise(){if(!player)return;closeEvo();closeLogi();if(rs.from&&!rs.from.alive)rs.from=null;rs.sig='';$('raise').hidden=false;rsPreset('all')}
+function closeRaise(){$('raise').hidden=true}
+$('rsClose').addEventListener('click',closeRaise);
+$('rsFrom').addEventListener('change',e=>{rs.from=player.nests.find(n=>String(n.id)===e.target.value)||null;rsPreset('all')});
+function rsTick(c){
+  if(rs.from&&!rs.from.alive)rs.from=null;
+  const sig=c.nests.map(n=>n.id+':'+n.gar).join(',')+'|'+(rs.from&&rs.from.id);
+  if(sig!==rs.sig){rs.sig=sig;$('rsFrom').innerHTML=`<option value="">Alle Baue (${c.nests.reduce((a,n)=>a+n.gar,0)} in Garnison)</option>`+c.nests.map(n=>`<option value="${n.id}"${n===rs.from?' selected':''}>${nestName(n)} (${n.gar} in Garnison)</option>`).join('')}
+  let sum=0;
+  for(const t of RS_T){const r=rs.rows[t],av=rsAvail(c,t);rs.n[t]=clamp(rs.n[t],0,av);sum+=rs.n[t];
+    r.hidden=!unlocked(c,t)&&!av;const inp=r.querySelector('input');inp.max=av;inp.disabled=!av;if(+inp.value!==rs.n[t])inp.value=rs.n[t];r.querySelector('b').textContent=`${rs.n[t]} / ${av}`}
+  const full=c.legions.length>=5,L=sel.legion&&c.legions.includes(sel.legion)?sel.legion:null;
+  $('rsSum').textContent=sum?`${sum} Kämpferinnen marschieren mit`:'Keine Kämpferinnen gewählt. Bilde im Bau unter „Ausbildung“ Kriegerinnen aus.';
+  $('rsSum').classList.toggle('warn',!sum||(full&&!L));
+  if(full&&sum)$('rsSum').textContent+=' · Maximal 5 Legionen: füge sie einer bestehenden Legion hinzu';
+  $('rsGo').classList.toggle('dis',!sum||full);
+  $('rsAdd').hidden=!L;if(L){$('rsAdd').textContent=`Zu Legion ${ROM[L.num]} hinzufügen`;$('rsAdd').classList.toggle('dis',!sum)}
+}
+function rsDo(into){if(!player)return;const L=raiseMix(player,rs.n,rs.from,into);
+  if(!L)return tip(!into&&player.legions.length>=5?'Maximal 5 Legionen':'Keine Kämpferinnen gewählt');
+  const k=RS_T.reduce((a,t)=>a+rs.n[t],0);closeRaise();selectLegion(L);toast(into?`${k} Kämpferinnen stoßen zu Legion ${ROM[L.num]}`:`Legion ${ROM[L.num]} ausgehoben: ${L.size} Kämpferinnen`,'good')}
+$('rsGo').addEventListener('click',()=>rsDo(null));$('rsAdd').addEventListener('click',()=>rsDo(sel.legion));
+function doRaise(){if(!player)return;$('raise').hidden?openRaise():closeRaise()}
+function doRaiseAll(){if(!player)return;const L=raiseLegion(player,1);if(L){selectLegion(L);toast(`Legion ${ROM[L.num]} ausgehoben: ${L.size} Kämpferinnen`,'good')}
   else tip(player.legions.length>=5?'Maximal 5 Legionen':'Keine Kämpferinnen in der Garnison. Bilde im Bau unter „Ausbildung“ Kriegerinnen aus')}
-$('raiseBtn').addEventListener('click',doRaise);
-$('homeBtn').addEventListener('click',()=>{if(sel.legion)legionHome(sel.legion,false)});
-$('disbBtn').addEventListener('click',()=>{if(sel.legion){legionHome(sel.legion,true);sel.legion=null;hudTick()}});
+$('raiseBtn').addEventListener('click',e=>e.shiftKey?doRaiseAll():doRaise());
+$('homeBtn').addEventListener('click',()=>homeSel(false));
+$('disbBtn').addEventListener('click',()=>homeSel(true));
 function milestones(c){
   const m=run.ms,chk=(k,cond,t,cls)=>{if(!m[k]&&cond){m[k]=1;toast(t,cls)}};
   for(const n of [25,50,100,200,300])chk('p'+n,c.pop>=n,`${n} Ameisen im Volk!`);
@@ -1619,7 +1737,7 @@ const HUDIDS=['stats','legbar','mini','hint','touch'];
 function hideHud(){for(const id of HUDIDS)$(id).hidden=true;$('evPanel').hidden=true}
 function startGame(){
   const name=($('nameIn').value.trim()||'Meine Kolonie').slice(0,18);meta.name=name;meta.color=selColor;store.set(MKEY,meta);
-  player=makeColony(name,PCOLORS[selColor],true);const lv=meta.lv;resetFog();checkTrees(player);
+  resetWorld();player=makeColony(name,PCOLORS[selColor],true);const lv=meta.lv;resetFog();checkTrees(player);
   player.skinA=meta.skins.eqA;player.skinN=meta.skins.eqN;
   const p=findSpawn(950);const n=makeNest(player,p.x,p.y,1);colCaps(player);
   n.food=80+40*(lv.food||0);player.shield=time+90;
@@ -1627,7 +1745,7 @@ function startGame(){
   patches[0]={x:p.x+rnd(-140,140),y:p.y+rnd(-140,140),r:220,life:70};
   const a2=rnd(TAU);patches[1]={x:clamp(p.x+Math.cos(a2)*650,300,WORLD-300),y:clamp(p.y+Math.sin(a2)*650,300,WORLD-300),r:240,life:160};
   for(let i=0;i<40;i++){const a=rnd(TAU),d=rnd(60,260);addFood(p.x+Math.cos(a)*d,p.y+Math.sin(a)*d,i%7===0?4:i%3===0?2:0)}
-  cam.x=p.x;cam.y=p.y;cam.z=1.1;run.start=time;run.peak=0;run.ms={};run.alertT=-99;sel.legion=null;closePanel();closeEvo();closeLogi();endMode();legSig='~';lgSig='';payOptSig='';
+  cam.x=p.x;cam.y=p.y;cam.z=1.1;run.start=time;run.peak=0;run.ms={};run.alertT=-99;clearSel();closePanel();closeEvo();closeLogi();closeRaise();endMode();legSig='~';lgSig='';payOptSig='';
   state='play';$('start').hidden=true;$('over').hidden=true;for(const id of HUDIDS)$(id).hidden=false;resize();
   toast('Dein Volk ist gegründet!','good');hudTick();lbTick();
 }
@@ -1635,7 +1753,7 @@ function gameOver(killer){
   state='over';const c=player;
   const score=Math.max(run.peak,c.strength);const earned=Math.floor(score/50)+c.nestKills*4+Math.floor(c.kills/25);
   meta.amber+=earned;meta.games++;const rec=score>meta.best;if(rec)meta.best=score;store.set(MKEY,meta);
-  const secs=Math.floor(time-run.start);sel.legion=null;closePanel();closeEvo();closeLogi();endMode();
+  const secs=Math.floor(time-run.start);clearSel();closePanel();closeEvo();closeLogi();closeRaise();endMode();
   setTimeout(()=>{
     $('overSub').textContent=(killer?`Dein letzter Bau wurde von ${killer.name} zerstört.`:'Deine Kolonie ist untergegangen.')+(rec?' Neuer Rekord!':'');
     $('oScore').textContent=fmt(score);$('oFood').textContent=fmt(c.totalFood);$('oTime').textContent=`${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
@@ -1660,9 +1778,11 @@ function handleClick(sx,sy,btn){
     let k=0;for(const a of ants)if(a.home===n&&a.type===0&&!a.carry&&(k++%(n.zones.length+1))!==0){a.area=n.zones.length-1;release(a);a.miss=0}
     marks.push({x:w.x,y:w.y,t:time,c:'#ffd27a',r:40});hudTick();return}
   if(btn===0){const own=player.nests.find(n=>Math.hypot(n.x-w.x,n.y-w.y)<n.r+14);if(own){selectNest(own);return}}
-  const other=player.legions.find(l=>l!==sel.legion&&Math.hypot(l.cx-w.x,l.cy-w.y)<11*Math.sqrt(l.size)+16);
+  const under=l=>Math.hypot(l.cx-w.x,l.cy-w.y)<11*Math.sqrt(l.size)+16;
+  if(btn===0&&shiftDown()){const hit=player.legions.find(under);if(hit){selectLegion(hit,false,true);return}}
+  const other=player.legions.find(l=>l!==sel.legion&&!sel.multi.has(l)&&under(l));
   if(other&&btn===0){selectLegion(other);return}
-  if(sel.legion){commandLegion(sel.legion,w.x,w.y);hudTick();return}
+  if(sel.legion){cmdSel(w.x,w.y);hudTick();return}
   if(sel.nest&&btn===0){closePanel();return}
   if(player.legions.length)tip('Wähle zuerst eine Legion (Taste 1–5)');else if(time-run.tipT>6){run.tipT=time;tip('Drück R, um eine Legion auszuheben')}
 }
@@ -1686,14 +1806,15 @@ addEventListener('keydown',e=>{
   if(tg.type==='range'&&e.code.startsWith('Arrow'))return;
   keys[e.code]=true;if(state!=='play'||!player)return;
   if(e.code==='Space'){e.preventDefault();const t=sel.legion?{x:sel.legion.cx,y:sel.legion.cy}:(sel.nest||player.nests[0]||player.travelers[0]);if(t){cam.x=t.x;cam.y=t.y}return}
-  if(e.code==='Escape'){if(mode)endMode();else if(!$('evo').hidden)closeEvo();else if(!$('logi').hidden)closeLogi();else if(sel.nest)closePanel();else{sel.legion=null;hudTick()}return}
+  if(e.code==='Escape'){if(mode)endMode();else if(!$('raise').hidden)closeRaise();else if(!$('evo').hidden)closeEvo();else if(!$('logi').hidden)closeLogi();else if(sel.nest)closePanel();else{clearSel();hudTick()}return}
   if(e.code==='KeyE'){$('evo').hidden?openEvo():closeEvo();return}
   if(e.code==='KeyL'){$('logi').hidden?openLogi():closeLogi();return}
-  if(e.code==='KeyR'){doRaise();return}
-  if(e.code==='KeyH'&&sel.legion){legionHome(sel.legion,false);return}
-  if(e.code==='KeyX'&&sel.legion){legionHome(sel.legion,true);sel.legion=null;hudTick();return}
+  if(e.code==='KeyR'){e.shiftKey?doRaiseAll():doRaise();return}
+  if(e.code==='KeyQ'){selectAll();return}
+  if(e.code==='KeyH'&&sel.legion){homeSel(false);return}
+  if(e.code==='KeyX'&&sel.legion){homeSel(true);return}
   if(e.code==='KeyB'){const ns=player.nests;if(!ns.length)return;const i=sel.nest?(ns.indexOf(sel.nest)+1)%ns.length:0;selectNest(ns[i]);cam.x=ns[i].x;cam.y=ns[i].y;return}
-  const d=parseInt(e.key,10);if(d>=1&&d<=5){const L=player.legions.find(l=>l.num===d-1);if(L)selectLegion(L,sel.legion===L);else tip(`Legion ${ROM[d-1]} gibt es nicht. Drück R zum Ausheben`)}
+  const dm=/^(?:Digit|Numpad)([1-5])$/.exec(e.code);if(dm){const d=+dm[1],L=player.legions.find(l=>l.num===d-1);if(L)selectLegion(L,!e.shiftKey,e.shiftKey);else tip(`Legion ${ROM[d-1]} gibt es nicht. Drück R zum Ausheben`)}
 });
 addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
