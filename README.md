@@ -75,6 +75,7 @@ Zerstört eine Legion einen fremden Bau, nimmt sie die Königin gefangen. Bringt
 | E | Evolution |
 | L | Logistik |
 | O | Reichsübersicht |
+| G | Sammelgebiet markieren (für den gewählten Bau oder den Bau nahe der Bildmitte, nochmal G beendet) |
 | R | Legion zusammenstellen (Shift + R: alle Kämpferinnen) |
 | 1–5 | Legion wählen, dann auf die Karte klicken (fremder Bau = Überfall) |
 | Shift + 1–5 / Shift + Klick | Mehrere Legionen wählen |

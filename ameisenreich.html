@@ -338,7 +338,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
   <p class="status" id="trainNote"></p>
   <label class="chk" for="autoW"><input type="checkbox" id="autoW"> Ist die Warteschlange leer, füllt die Königin freie Plätze mit Sammlerinnen</label>
   <h3 class="sec">Sammelgebiete</h3>
-  <div class="btnrow"><button class="btn" id="zoneBtn" type="button">Gebiet markieren</button><button class="btn red" id="zoneClr" type="button">Alle löschen</button></div>
+  <div class="btnrow"><button class="btn" id="zoneBtn" type="button">Gebiet markieren <kbd>G</kbd></button><button class="btn red" id="zoneClr" type="button">Alle löschen</button></div>
   <p class="note" id="zoneNote">Sammlerinnen arbeiten im Revier des Baus und in bis zu 3 markierten Gebieten (max. 1500 entfernt). Ist ein Gebiet leer, wechseln sie ins nächste.</p>
   <h3 class="sec">Blattlaus-Weiden</h3>
   <div class="train" id="farmList"></div>
@@ -407,7 +407,7 @@ select.sel:focus-visible{outline:2px solid var(--amber)}
 <canvas id="mini" class="hud" hidden></canvas>
 <div id="feed" class="hud"></div>
 <div id="toasts" class="hud"></div>
-<div id="hint" class="hud" hidden><b>Ziehen</b>/<b>WASD</b> Karte · <b>Rad</b> Zoom<br><b>Klick Bau</b> Räume, Brut, Gebiete<br><kbd>E</kbd> Evolution · <kbd>O</kbd> Übersicht<br><kbd>R</kbd> Legion bilden<br><kbd>1</kbd>–<kbd>5</kbd> Legion wählen, dann Klick<br><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>5</kbd>/Klick: mehrere · <kbd>Q</kbd> alle<br>Klick auf fremden Bau = Überfall</div>
+<div id="hint" class="hud" hidden><b>Ziehen</b>/<b>WASD</b> Karte · <b>Rad</b> Zoom<br><b>Klick Bau</b> Räume, Brut, Gebiete<br><kbd>E</kbd> Evolution · <kbd>O</kbd> Übersicht<br><kbd>G</kbd> Sammelgebiet markieren<br><kbd>R</kbd> Legion bilden<br><kbd>1</kbd>–<kbd>5</kbd> Legion wählen, dann Klick<br><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>5</kbd>/Klick: mehrere · <kbd>Q</kbd> alle<br>Klick auf fremden Bau = Überfall</div>
 <div id="touch" class="hud" hidden><button id="zIn" type="button" aria-label="Hineinzoomen">+</button><button id="zOut" type="button" aria-label="Herauszoomen">−</button></div>
 
 <div id="start" class="overlay">
@@ -2046,6 +2046,9 @@ addEventListener('keydown',e=>{
   if(e.code==='Escape'){if(mode)endMode();else if(!$('raise').hidden)closeRaise();else if(!$('ovw').hidden)closeOvw();else if(!$('evo').hidden)closeEvo();else if(!$('logi').hidden)closeLogi();else if(sel.nest)closePanel();else{clearSel();hudTick()}return}
   if(e.code==='KeyE'){$('evo').hidden?openEvo():closeEvo();return}
   if(e.code==='KeyL'){$('logi').hidden?openLogi():closeLogi();return}
+  if(e.code==='KeyG'){if(mode&&mode.kind==='zone'){endMode();return}
+    const n=sel.nest||nearestOwnNest(player,cam.x,cam.y);if(!n)return;startMode('zone',n);
+    if(!sel.nest)tip(`Sammelgebiete für ${nestName(n)} (der Bau, der am nächsten an der Bildmitte liegt)`);return}
   if(e.code==='KeyO'){$('ovw').hidden?openOvw():closeOvw();return}
   if(e.code==='KeyR'){e.shiftKey?doRaiseAll():doRaise();return}
   if(e.code==='KeyQ'){selectAll();return}
