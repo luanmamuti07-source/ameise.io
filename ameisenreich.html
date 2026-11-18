@@ -1224,44 +1224,52 @@ function botZones(c){
     for(const o of ps.slice(0,1+(n.level>=3?1:0)))n.zones.push({x:o.p.x,y:o.p.y,r:ZONE_R})}
 }
 function updateAI(c,dt){
-  const ai=c.ai;ai.t-=dt;if(ai.t>0||!c.nests.length)return;ai.t=rnd(.8,1.2);ai.raidCd-=1;ai.zt-=1;
+  // Bots think about once a second, but may only act like a human player: one action every
+  // ai.apm seconds (5–8 s per bot), with at most two actions saved up.
+  const ai=c.ai;ai.t-=dt;if(ai.t>0||!c.nests.length)return;ai.t=rnd(.9,1.3);
+  const el=ai.lt==null?1:time-ai.lt;ai.lt=time;ai.apm=ai.apm||rnd(5,8);ai.ap=Math.min(2,(ai.ap??1)+el/ai.apm);
+  ai.raidCd-=el;ai.zt-=el;
+  const act=()=>{if(ai.ap<1)return false;ai.ap-=1;return true};
   if(ai.zt<=0){ai.zt=rnd(30,50);botZones(c)}
   const main=c.nests.reduce((b,n)=>n.level>b.level?n:b,c.nests[0]);
   const threat=c.nests.find(n=>time-n.lastHit<4)||c.farms.find(f=>time-f.lastHit<4);
+  if(threat){ai.seen=ai.seen??time}else ai.seen=null;
+  const react=threat&&time-ai.seen>=(ai.rt||(ai.rt=rnd(2,4)));
   const ag=ai.aggr+(threat?.4:0);
-  {const want=c.popA<c.capA-1&&c.popA<c.popW*(.25+.35*ai.aggr+(threat?.2:0))&&Math.random()<.35+.5*ag?1:0,fShare=1-want;
-   const ft=[1,1];if(unlocked(c,2))ft.push(2,2);if(unlocked(c,4))ft.push(4);if(unlocked(c,5))ft.push(5);
-   for(const k in DOCS)if(docReady(c,k)&&Math.random()<.3){const o=DOCS[k].opts;tryDoc(c,k,o[rnd(o.length)|0].id,richest(c))}
-   for(const n of c.nests){n.auto=true;if(!n.queue.length&&fShare<want)queueAdd(n,ft[rnd(ft.length)|0],4)}
-  }
-  if(c.nests.length>1){const by=c.nests.slice().sort((a,b)=>a.food/a.cap-b.food/b.cap),poor=by[0],rich=by[by.length-1];
-    if(rich.food>rich.cap*.55&&poor.food<poor.cap*.25)moveFood(rich,poor,rich.food*.3)}
-  botSpend(c);if(Math.random()<.4)botSpend(c);
+  // defence first: one command per legion, and only after a short reaction delay
   for(const L of c.legions){
     if(L.captive){const h=nearestOwnNest(c,L.captive.x,L.captive.y);if(h){L.tx=h.x;L.ty=h.y;L.target=null;L.defend=false;L.disband=false}continue}
-    if(threat&&!L.defend&&(!L.target||Math.hypot(L.cx-threat.x,L.cy-threat.y)<900)){L.target=null;L.tx=threat.x;L.ty=threat.y;L.defend=true;L.disband=false}
-    else if(L.defend&&!threat)legionHome(L,true);
-    else if(L.target&&!L.target.alive)legionHome(L,true);
-    else if(!L.disband&&!L.defend&&L.size<L.init*.35)legionHome(L,true);
+    if(react&&!L.defend&&(!L.target||Math.hypot(L.cx-threat.x,L.cy-threat.y)<900)){if(act()){L.target=null;L.tx=threat.x;L.ty=threat.y;L.defend=true;L.disband=false}}
+    else if(L.defend&&!threat){if(act())legionHome(L,true)}
+    else if(L.target&&!L.target.alive){if(act())legionHome(L,true)}
+    else if(!L.disband&&!L.defend&&L.size<L.init*.35){if(act())legionHome(L,true)}
   }
+  {const want=c.popA<c.capA-1&&c.popA<c.popW*(.25+.35*ai.aggr+(threat?.2:0))&&Math.random()<.35+.5*ag?1:0,fShare=1-want;
+   const ft=[1,1];if(unlocked(c,2))ft.push(2,2);if(unlocked(c,4))ft.push(4);if(unlocked(c,5))ft.push(5);
+   for(const k in DOCS)if(docReady(c,k)&&Math.random()<.3&&act()){const o=DOCS[k].opts;tryDoc(c,k,o[rnd(o.length)|0].id,richest(c))}
+   for(const n of c.nests){n.auto=true;if(!n.queue.length&&fShare<want&&act())queueAdd(n,ft[rnd(ft.length)|0],5)}
+  }
+  if(c.nests.length>1){const by=c.nests.slice().sort((a,b)=>a.food/a.cap-b.food/b.cap),poor=by[0],rich=by[by.length-1];
+    if(rich.food>rich.cap*.55&&poor.food<poor.cap*.25&&act())moveFood(rich,poor,rich.food*.3)}
+  if(act())botSpend(c);
   if(!threat)for(const q of structs)if(q.kind==='captive'&&q.alive&&q.col!==c&&knows(c,q.x,q.y)&&Math.hypot(q.x-main.x,q.y-main.y)<1500){
-    if(c.legions.some(l=>l.target===q))break;
+    if(c.legions.some(l=>l.target===q)||!act())break;
     const L=c.legions.find(l=>!l.captive&&!l.defend);
     if(L){L.target=q;L.disband=false}else if(main.gar>=5&&c.legions.length<3){const N=raiseLegion(c,.8,main);if(N){N.target=q;N.tx=q.x;N.ty=q.y}}
     break}
-  if(!threat&&ai.raidCd<=0&&c.legions.length<2){
+  if(!threat&&ai.raidCd<=0&&c.legions.length<2&&ai.ap>=1){
     const gar=main.gar,need=8+3*c.nests.reduce((s,n)=>s+n.level,0);
     if(gar>=need){
       const size=Math.floor(gar*.75);let best=null,bs=Infinity;
       for(const s of structs){if(!s.alive||s.col===c||s.col.shield>time||time-s.col.born<240||!knows(c,s.x,s.y))continue;const d=Math.hypot(s.x-main.x,s.y-main.y);if(d>1900)continue;
         const def=s.kind==='nest'?(s.gar*.8+s.level*2+s.rooms.guard*3):s.kind==='mob'?s.hp/60:2;if(def>size*1.15)continue;
         const sc=d*(.5+def/size)*(s.col.isPlayer?1.15:s.kind==='mob'?.6:1)*(s.kind==='farm'?Math.max(.3,1-s.honey/600):1);if(sc<bs){bs=sc;best=s}}
-      if(best){const L=raiseLegion(c,.75,main);if(L){L.target=best;L.tx=best.x;L.ty=best.y}ai.raidCd=rnd(40,85)/(.5+ai.aggr)}else ai.raidCd=10;
+      if(best){act();const L=raiseLegion(c,.75,main);if(L){L.target=best;L.tx=best.x;L.ty=best.y}ai.raidCd=rnd(50,100)/(.5+ai.aggr)}else ai.raidCd=10;
     }
   }
-  if(!threat&&c.nests.length+c.travelers.length<maxNests(c)&&Math.random()<.12){
+  if(!threat&&c.nests.length+c.travelers.length<maxNests(c)&&Math.random()<.12&&ai.ap>=1){
     const src=c.nests.find(n=>n.level>=3);
-    if(src&&src.food>splitCost(c)+60)for(let i=0;i<12;i++){const a=rnd(TAU),d=rnd(550,950),x=src.x+Math.cos(a)*d,y=src.y+Math.sin(a)*d;if(!siteProblem(c,x,y,src)){sendQueen(c,src,x,y);break}}
+    if(src&&src.food>splitCost(c)+60&&act())for(let i=0;i<12;i++){const a=rnd(TAU),d=rnd(550,950),x=src.x+Math.cos(a)*d,y=src.y+Math.sin(a)*d;if(!siteProblem(c,x,y,src)){sendQueen(c,src,x,y);break}}
   }
 }
 function findSpawn(minD){let best=null,bs=-1;
